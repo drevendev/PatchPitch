@@ -26,9 +26,8 @@ installed model and `PATCHPITCH_TIMEOUT` to a timeout in seconds (default 420,
 maximum 600). `.env.example` documents process settings; the app does not read
 `.env` files automatically. No hosted inference key or paid fallback.
 
-The current patch-based Idle Fantasy Shop example uses `gemma4:12b` with thinking
-enabled for full devlogs and direct responses for social posts, with the model
-author's sampling profile: temperature 1, top_p 0.95,
+The current patch-based Idle Fantasy Shop example uses `gemma4:12b` with direct
+generation (`think=False`) for all three formats, using temperature 1, top_p 0.95,
 top_k 64. It needs more memory than a small 4B model. Earlier Gemma 3 runs and their
 limitations are retained in the local evidence. A different model can be selected
 through `PATCHPITCH_MODEL`; a valid schema does not guarantee equal writing quality.
@@ -161,11 +160,16 @@ claim remote acceptance or publish evidence automatically.
 ## Development checks
 
 ```powershell
-.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt -r requirements-dev.lock
 $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path (Get-Location) '.tools\browsers'
 .\.venv\Scripts\python.exe -m playwright install chromium
 .\.venv\Scripts\python.exe -m pytest -q
 ```
+
+The development lock records a tested Python 3.12 dependency snapshot. CI installs
+both the direct requirements and this snapshot so incompatible pins fail during
+installation. To refresh it, install `requirements-dev.txt` in a fresh virtual
+environment and record `python -m pip freeze`.
 
 Linux CI installs Chromium with `python -m playwright install --with-deps chromium`.
 Unit/API/browser tests use explicitly labelled **MOCK** responses. Real inference

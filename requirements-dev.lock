@@ -1,9 +1,10 @@
+# Development dependency snapshot from a clean Python 3.12 Linux environment.
+# Refresh: install requirements-dev.txt in a fresh venv, then run python -m pip freeze.
 annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.15.1
-certifi==2026.7.22
+certifi==2026.10.18
 click==8.5.0
-colorama==0.4.6
 fastapi==0.146.0
 greenlet==3.5.6
 h11==0.16.0
@@ -21,7 +22,9 @@ pydantic_core==2.50.1
 pyee==14.0.0
 Pygments==2.21.0
 pytest==9.1.1
-starlette==1.8.0
+sentry-sdk==2.72.0
+starlette==1.9.0
 typing-inspection==0.4.4
 typing_extensions==4.16.0
+urllib3==2.8.0
 uvicorn==0.54.0

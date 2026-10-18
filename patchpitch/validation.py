@@ -110,6 +110,7 @@ def claims_parallel_execution(text):
     Ambiguous wording still needs human review. Only an affirmative execution
     phrase about jobs/tasks/entries is strong enough to reject a whole draft.
     """
+    text = text.replace("’", "'").replace("‘", "'")
     parallel = r"(?:at once|in parallel|simultaneous(?:ly)?)"
     jobs = r"(?:jobs?|tasks?|entries)"
     execution = r"(?:runs?|running|executes?|executed|executing|processes|processed|processing)"
