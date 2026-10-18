@@ -138,6 +138,13 @@ envelopes are rebuilt from a small allowlist. Drafts, notes, voice samples, prom
 messages, output text, user data, breadcrumbs, extras, attachments and sampling
 baggage are excluded. Delivery failure leaves the generation result unchanged.
 
+Sentry's server can derive location from the network connection even when no user
+fields leave the SDK. In the project's **Security & Privacy** settings, enable
+**Prevent Storing of IP Addresses** and add the advanced scrubbing rule
+`[Remove] [Anything] from [$user.geo.**]`. These settings affect new events only;
+verify the received event as well as the outgoing packet. See Sentry's
+[server-side scrubbing documentation](https://docs.sentry.io/security-legal-pii/scrubbing/server-side-scrubbing/#geographic-information).
+
 Use an existing free Sentry project with paid overages disabled. No account,
 project, paid subscription or API token is created by the app. The DSN is a local
 configuration value and must not be committed. See Sentry's
