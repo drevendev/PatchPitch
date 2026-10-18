@@ -119,9 +119,50 @@ def test_post_cannot_cite_backup_but_drop_its_circumstances(monkeypatch,input_da
     assert generator.generate(PitchInput.model_validate(input_data))["raw_draft"]==raw
 
 
-def test_ordered_jobs_are_not_parallel_execution(monkeypatch,input_data):
+@pytest.mark.parametrize("prose",[
+    "Run crafting jobs at once.",
+    "Crafting jobs run in parallel.",
+    "Crafting jobs are executed simultaneously.",
+    "The Batch runs three jobs at once, not in order.",
+])
+def test_ordered_jobs_are_not_parallel_execution(monkeypatch,input_data,prose):
     input_data.update(format="community",cta_text="")
     input_data["changes"][0]["text"]="Execute ordered crafting jobs once."
-    transport(monkeypatch,{"text":"Run crafting jobs at once.","source_ids":["C01"],"hashtags":[]})
+    transport(monkeypatch,{"text":prose,"source_ids":["C01"],"hashtags":[]})
+    with pytest.raises(generator.GenerationError,match="simultaneous work"):
+        generator.generate(PitchInput.model_validate(input_data))
+
+
+@pytest.mark.parametrize("prose",[
+    "You can queue three jobs at once. The list runs in order and stops.",
+    "Manage multiple crafting tasks at once. The ordered list executes sequentially.",
+    "Crafting jobs do not run in parallel.",
+    "Jobs cannot run simultaneously.",
+    "Do not run crafting jobs at once.",
+    "Jobs run in order, not at once.",
+    "Workers gather materials in parallel while the ordered jobs run once.",
+])
+def test_ordered_plan_capacity_and_negation_are_not_parallel_claims(monkeypatch,input_data,prose):
+    input_data.update(format="community",cta_text="")
+    input_data["changes"][0]["text"]="Execute ordered crafting jobs once."
+    raw={"text":prose,"source_ids":["C01"],"hashtags":[]}
+    transport(monkeypatch,raw)
+    assert generator.generate(PitchInput.model_validate(input_data))["raw_draft"]==raw
+
+
+def test_full_devlog_accepts_queue_capacity_without_rewriting(monkeypatch,input_data,draft_data):
+    input_data["changes"][0]["text"]="Queue three ordered crafting jobs; execute the list once."
+    prose="You can queue three crafting jobs at once. The list executes in order and stops."
+    draft_data["highlights"][0]["text"]=prose
+    transport(monkeypatch,draft_data)
+    result=generator.generate(PitchInput.model_validate(input_data))
+    assert result["draft"]["highlights"][0]["text"]==prose
+    assert prose in result["markdown"] and result["automated_cleanup"]==[]
+
+
+def test_negative_source_does_not_authorize_parallel_execution(monkeypatch,input_data):
+    input_data.update(format="community",cta_text="")
+    input_data["changes"][0]["text"]="Ordered jobs do not run in parallel."
+    transport(monkeypatch,{"text":"Jobs run in parallel.","source_ids":["C01"],"hashtags":[]})
     with pytest.raises(generator.GenerationError,match="simultaneous work"):
         generator.generate(PitchInput.model_validate(input_data))

@@ -16,13 +16,13 @@ os.environ.setdefault('PLAYWRIGHT_BROWSERS_PATH', str(ROOT / '.tools' / 'browser
 from playwright.sync_api import sync_playwright
 
 NARRATION_CUES = [
-    (0, 5, 'You made something worth sharing. Give it a story.'),
+    (0, 5, 'Your product deserves a great story.'),
     (5, 12, 'Meet Idle Fantasy Shop, a cozy little game about crafting goods and running your own fantasy shop.'),
     (12, 22, 'This update gives the workshop a plan, and the gathering grounds a chance to rest. These notes come from its real code patch.'),
     (22, 34, "Choose what shipped. Local Gemma writes a fresh announcement from those facts, with the important details kept. This generation wait is shortened."),
     (34, 45, 'A good story still needs a careful look. Check the sources, keep the limits clear, and make it yours if you want.'),
     (45, 54, 'Then take the Markdown with you. An update your players can understand, with a little of the game\'s character still there.'),
-    (54, 60, 'That was one small shop\'s update. Give your next release a story, with PatchPitch.')
+    (54, 60, 'PatchPitch. Your product deserves a great story.')
 ]
 
 
@@ -99,7 +99,7 @@ def main():
         screenshot('title.png', shell + '<span class="spark">✳</span><main><div class="k">FOR THE THINGS YOU MAKE</div><h1>Your product deserves<br>a great story<span class="dot">.</span></h1><p>Real changes. A little more life.</p><span class="pill">Local Gemma · Your own voice</span></main><div class="foot">FROM SHIPPED TO SHARED</div>')
         game = data_url(ART/'game/screen-2.png','image/png')
         screenshot('game.png', '<div class="frame"></div><div class="mark">MEET THE GAME</div><main><div class="k">A COZY LITTLE IDLE GAME</div><h1>Idle Fantasy<br>Shop<span class="dot">.</span></h1><p>Gather. Craft. Stock your shelves.<br>A small shop of your own in Latchford.</p><span class="pill">drevengames.itch.io/idle-fantasy-shop</span></main><img class="game-screen" src="'+game+'"><div class="foot">ACTUAL GAME SCREENSHOT · DREVEN GAMES</div>', 'main{top:275px;max-width:830px}h1{font-size:102px}.game-screen{position:absolute;right:110px;top:260px;width:910px;border:1px solid #d6bd7d;border-radius:12px;box-shadow:0 30px 75px #38452b20;transform:rotate(-2deg)}main p{font-size:24px}.pill{font-size:19px}')
-        screenshot('outro.png', shell + '<span class="spark">✳</span><main><div class="k">YOUR NEXT RELEASE STARTS HERE</div><h1>Give what you ship<br>a story<span class="dot">.</span></h1><p>Your facts. Local Gemma. Your final say.</p><span class="pill">github.com/drevendev/PatchPitch ↗</span></main><div class="foot">DEMO CASE · IDLE FANTASY SHOP<br><span class="game-credit">drevengames.itch.io/idle-fantasy-shop</span></div>', 'h1{font-size:112px}.game-credit{font-size:15px;letter-spacing:.3px;line-height:2.4}')
+        screenshot('outro.png', shell + '<span class="spark">✳</span><main><div class="k">YOUR NEXT RELEASE STARTS HERE</div><h1>Your product deserves<br>a great story<span class="dot">.</span></h1><p>PatchPitch</p><span class="pill">github.com/drevendev/PatchPitch ↗</span></main><div class="foot">DEMO CASE · IDLE FANTASY SHOP<br><span class="game-credit">drevengames.itch.io/idle-fantasy-shop</span></div>', 'h1{font-size:112px}.game-credit{font-size:15px;letter-spacing:.3px;line-height:2.4}')
         captions = ['A cozy game. A real update.', 'Keep the changes that shipped.', f'Generation wait shortened · actual request: {elapsed:.1f}s', 'The story, with its important details.', 'A careful look at the original facts.', 'Take the story with you. Nothing auto-posted.']
         for i,text in enumerate(captions):
             label='Recorded Gemma draft · review UI' if review and i in (4,5) else 'Idle Fantasy Shop · Real local generation'

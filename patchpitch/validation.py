@@ -104,6 +104,26 @@ def block_text(block):
     return " ".join(part for part in [block.text, *getattr(block, "retained_facts", [])] if part)
 
 
+def claims_parallel_execution(text):
+    """Narrow lexical guard: planning several jobs is not executing them together.
+
+    Ambiguous wording still needs human review. Only an affirmative execution
+    phrase about jobs/tasks/entries is strong enough to reject a whole draft.
+    """
+    parallel = r"(?:at once|in parallel|simultaneous(?:ly)?)"
+    jobs = r"(?:jobs?|tasks?|entries)"
+    execution = r"(?:runs?|running|executes?|executed|executing|processes|processed|processing)"
+    gap = r"[^.!?;,:]{0,70}?"
+    pattern = rf"\b(?:{execution}{gap}\b{jobs}|{jobs}{gap}\b{execution}){gap}\b{parallel}\b"
+    clauses = re.split(r"[.!?;,:]|\b(?:but|while|whereas)\b", text, flags=re.I)
+    for clause in clauses:
+        for match in re.finditer(pattern, clause, re.I):
+            claim = clause[max(0, match.start()-24):match.end()]
+            if not re.search(r"\b(?:not|never|cannot|can't|don't|doesn't|won't|aren't|isn't)\b", claim, re.I):
+                return True
+    return False
+
+
 def validate_draft(draft: Draft, request: PitchInput) -> list[str]:
     post = isinstance(draft, PostDraft)
     if not post and re.search(r"[-–—,:;]$",draft.title.text):
@@ -136,8 +156,8 @@ def validate_draft(draft: Draft, request: PitchInput) -> list[str]:
             raise DraftError(f"{label} cites an unknown or excluded source ID. Please generate again.")
         source_text = context + " " + " ".join(sources[source] for source in block.source_ids)
         if (re.search(r"\bordered\b|\bqueue\b",source_text,re.I)
-                and re.search(r"\bat once\b|\bparallel\b|\bsimultaneous\w*\b",prose,re.I)
-                and not re.search(r"\bat once\b|\bparallel\b|\bsimultaneous\w*\b",source_text,re.I)):
+                and claims_parallel_execution(prose)
+                and not claims_parallel_execution(source_text)):
             raise DraftError(f"{label} describes an ordered plan as simultaneous work. Please generate again.")
         if re.search(r"\b(TODO|TBD|FIXME|lorem ipsum|placeholder)\b|\[\[", prose, re.I):
             raise DraftError("The model left a placeholder. Please generate again.")
