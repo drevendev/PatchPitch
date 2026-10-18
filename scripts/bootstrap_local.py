@@ -13,6 +13,8 @@ TOOLS = ROOT / ".tools"
 
 
 def main():
+    (ROOT / "submission").mkdir(parents=True, exist_ok=True)
+    (ROOT / "artifacts").mkdir(parents=True, exist_ok=True)
     TOOLS.mkdir(exist_ok=True)
     request = urllib.request.Request("https://api.github.com/repos/ollama/ollama/releases/latest", headers={"User-Agent": "PatchPitch-local-setup"})
     with urllib.request.urlopen(request, timeout=30) as response:
@@ -49,7 +51,7 @@ def main():
     output = (ROOT / "artifacts" / "ollama.log").open("a", encoding="utf-8")
     process = subprocess.Popen([str(executable), "serve"], env=env, stdout=output, stderr=output, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
     (TOOLS / "ollama.pid").write_text(str(process.pid))
-    print(f"Ollama PID {process.pid}; loopback only. Run .tools/ollama/ollama.exe pull gemma3:4b next.", flush=True)
+    print(f"Ollama PID {process.pid}; loopback only. Run .tools/ollama/ollama.exe pull gemma4:12b next.", flush=True)
 
 
 if __name__ == "__main__":

@@ -11,9 +11,11 @@ def read(path):return json.loads((ROOT/path).read_text(encoding="utf-8-sig"))
 
 
 def main():
+    (ROOT / "submission").mkdir(parents=True, exist_ok=True)
+    (ROOT / "artifacts").mkdir(parents=True, exist_ok=True)
     capture=read("submission/capture-evidence.json")
     video=read("submission/video-evidence.json")
-    evaluation=read("submission/evaluation-summary.json")
+    evaluation=read("submission/patch-evaluation-summary.json") if (ROOT/"submission/patch-evaluation-summary.json").exists() else read("submission/evaluation-summary.json")
     publication=read("submission/publication.json") if (ROOT/"submission/publication.json").exists() else {}
     article=(ROOT/"submission/article.md").read_text(encoding="utf-8")
     assets=["artifacts/patchpitch-demo.mp4","artifacts/raw-demo.webm","artifacts/poster.png","artifacts/captions.srt","artifacts/narration.txt","artifacts/generated.png","artifacts/sources.png","artifacts/demo-announcement.md"]
@@ -37,9 +39,12 @@ def main():
         "code_publication":publication,"article_published":False,"video_published":False,"new_payments":0,"paid_api_calls":0,
         "deadline":"2026-10-19T09:59:00+03:00",
         "runtime_url":"http://127.0.0.1:8000",
+        "product_upgrade":read("submission/product-upgrade-evidence.json") if (ROOT/"submission/product-upgrade-evidence.json").exists() else None,
         "source_repository":publication.get("repository_url","LOCAL WORKSPACE ONLY"),
         "assets":[{"path":path,"bytes":(ROOT/path).stat().st_size,"sha256":hashlib.sha256((ROOT/path).read_bytes()).hexdigest()} for path in assets],
-        "limitations":["Valid source IDs and numeric warnings do not establish semantic accuracy","Model/prompt/input tuning is not a controlled benchmark; all attempts retained","Final copy includes an explicit editorial edit, separate from untouched model draft","Article/video remain local by explicit owner instruction","Missing supplementary handoff files reconstructed only from 01_SPEC"]
+        "limitations":["Valid source IDs and numeric warnings do not establish semantic accuracy","Model/prompt/input tuning is not a controlled benchmark; all attempts retained",
+                        "Explicit owner edit recorded separately" if capture["manual_edit"]["performed"] else "No editorial edits; model-authored sentences are joined into paragraphs",
+                        "Technical patch facts are human-prepared; there is no automatic Git importer","Article/video remain local by explicit owner instruction","Missing supplementary handoff files reconstructed only from 01_SPEC"]
     }
     (ROOT/"submission/evidence.json").write_text(json.dumps(report,indent=2,ensure_ascii=False),encoding="utf-8")
     print(json.dumps({"APP_WORKING":report["APP_WORKING"],"LIVE_MODEL":report["LIVE_MODEL"],"FINAL_READY":False,"unresolved_todos":report["article"]["unresolved_todos"]}))

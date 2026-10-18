@@ -1,4 +1,5 @@
 import json
+import hashlib
 import threading
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -55,9 +56,11 @@ def health():
         version = generator.ollama_json("/api/version")
         tags = generator.ollama_json("/api/tags")
         model = next((m for m in tags.get("models", []) if m.get("name") == generator.MODEL), None)
-        return {"app": __version__, "mode": "LOCAL", "ollama": "ready" if model else "model_missing", "ollama_version": version.get("version"), "model": generator.MODEL, "digest": model.get("digest") if model else None}
+        return {"app": __version__, "mode": "LOCAL", "ollama": "ready" if model else "model_missing", "ollama_version": version.get("version"), "model": generator.MODEL, "digest": model.get("digest") if model else None,
+                "options": generator.OPTIONS, "prompt_sha256": hashlib.sha256(generator.read_prompt().encode()).hexdigest(),
+                "prompt_hashes": {fmt:hashlib.sha256(generator.read_prompt(fmt).encode()).hexdigest() for fmt in ("devlog","community","short")}}
     except generator.GenerationError as exc:
-        return {"app": __version__, "mode": "LOCAL", "ollama": exc.code, "model": generator.MODEL, "message": exc.message}
+        return {"app": __version__, "mode": "LOCAL", "ollama": exc.code, "model": generator.MODEL, "options": generator.OPTIONS, "message": exc.message}
 
 
 @app.post("/api/prepare")

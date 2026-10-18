@@ -1,14 +1,58 @@
 {
-  "product": {"name": "Idle Fantasy Shop", "description": "An idle game about running a fantasy shop in Latchford, crafting goods and supplying its shelves."},
-  "audience": "Returning players who want to know what they can do in version 0.12",
+  "product": {
+    "name": "Idle Fantasy Shop",
+    "description": "A cozy browser idle game about keeping a small shop in Latchford: gather resources, craft practical goods and stock your shelves."
+  },
+  "audience": "Returning shopkeepers who want concrete reasons to try version 0.12",
   "release_label": "0.12",
+  "voice_reference": "Tone brief from in-game item descriptions: cozy small-town shopkeeping, practical handmade goods and gentle dry humour. Keep any wit light and concrete. No epic fantasy language or corporate hype. This is a style brief, not announcement prose or a factual source.",
   "changes": [
-    {"id":"C01","text":"At Workshop level 10, plan three ordered crafting jobs with Crafting Batch. It runs the plan once, pausing when ingredients are missing and resuming when they arrive. It does not gather ingredients: your workers can supply them.","include":true},
-    {"id":"C02","text":"Advanced gathering puts pressure on a biome and slows later cycles. Resting a biome lets it recover. Basic brushwood, ashwood and reed gathering does not exhaust biomes.","include":true},
-    {"id":"C03","text":"Craft ten new goods, including waxed wraps, linen market bags and oak counter trays. Separate late-game shelf upgrades provide more shelf capacity.","include":true},
-    {"id":"C04","text":"Existing shops, workers, purchases, progress and random sequences carry forward. Export a backup from Settings before moving devices or clearing browser data.","include":true},
-    {"id":"C05","text":"[planned] More production skills and deeper trade.","include":false}
+    {
+      "id": "C01",
+      "text": "Crafting Batch feature, opened through Batch Board inside Workshop. Crafting Batch access requires Workshop level 10: at most 3 ordered job entries. Workshop level 50 expands the Batch to at most 5 entries. Each entry requests 1-99 completed crafting cycles, not an output-item count. Duplicate job entries allowed. Execute the ordered list once, then stop. Missing ingredients block that entry until supplied; later entries cannot skip ahead. Workers can supply materials; the Batch does not collect them.",
+      "include": true
+    },
+    {
+      "id": "C02",
+      "text": "Biome pressure contributors: both the player and workers doing advanced Gathering. Pressure is shared within each biome and slows later cycles there. Pressure recovers automatically while no pressure-causing gathering jobs are running in that biome; there is no recovery action to start. Brushwood, ashwood and reed gathering add no pressure and do not block recovery. A cycle already running keeps its originally quoted duration. Biomes: forest, marsh, fields, riverbank.",
+      "include": true
+    },
+    {
+      "id": "C03",
+      "text": "10 new items total. New raw materials: flax, beeswax, slate. Seven new craftable goods: linen thread, linen, slate marker, oak peg rack, waxed wrap, linen market bag, oak counter tray. Flax processing: flax -> linen thread -> linen. Separate Shelf Capacity V and VI purchases set EACH INDIVIDUAL shelf to a TOTAL capacity of 60 and 80 units respectively. Purchase requirements: Trading level 40 and 60 respectively, preceding capacity upgrade, material cost and Gold cost. Reaching a Trading level does not grant these upgrades automatically.",
+      "include": true
+    },
+    {
+      "id": "C04",
+      "text": "Society milestone changes: Commons -> increased Locals purchase acceptance (not higher prices); Civic Lantern Office milestone -> stronger Illuminated Path for Lamplighters; Stonevein -> earlier construction discount. Effects read existing claimed milestone flags, so previously claimed milestones also receive added effects.",
+      "include": true
+    },
+    {
+      "id": "C05",
+      "text": "Artisan Chest guidance: notification on first acquisition. Unopened chest counter is a shortcut to Inventory Chests view. Codex listing limit: only chest-source jobs already unlocked by the player. Each listed source job displays its chance of yielding an Artisan Chest per completion. Existing chest opening remains a manual player choice.",
+      "include": true
+    },
+    {
+      "id": "C06",
+      "text": "Interface: shared Help guide beside profession heading explains starting jobs, repeat, mastery, shelf actions; repeated help removed from individual job cards. Society level details expose all rewards. New content labels and explanations in English and Russian.",
+      "include": true
+    },
+    {
+      "id": "C07",
+      "text": "Import/Reset save replacement: pause play while storage writes the replacement. Unresolved replacement keeps play paused, with current-game export still available. Confirmed abort (storage confirms no replacement happened): continue the old game. Legacy recovery for conflicting main-database and local-mirror saves belonging to different playthroughs: all original copies can be downloaded before choosing which saved game to keep.",
+      "include": true
+    },
+    {
+      "id": "C08",
+      "text": "Existing state kept when updating: shop, workforce, purchases, progress and random sequences. Pre-existing browser-save precaution: export a backup from Settings before changing devices or clearing browser data.",
+      "include": true
+    },
+    {
+      "id": "C09",
+      "text": "[internal] Delivery implementation: external icon sprite and WOFF2 font files.",
+      "include": false
+    }
   ],
-  "cta_text":"Play Idle Fantasy Shop: https://drevengames.itch.io/idle-fantasy-shop",
-  "confirmed":true
+  "cta_text": "Play Idle Fantasy Shop: https://drevengames.itch.io/idle-fantasy-shop",
+  "confirmed": true
 }

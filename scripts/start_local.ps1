@@ -20,4 +20,4 @@ try {
     $taskProcess = [System.Diagnostics.Process]::Start($taskInfo)
     Write-Host "Started workspace Ollama PID $($taskProcess.Id)."
 }
-& $taskPython -m uvicorn patchpitch.app:app --host 127.0.0.1 --port 8000
+& $taskPython -m uvicorn patchpitch.app:app --host 127.0.0.1 --port 8000 --reload --reload-dir patchpitch

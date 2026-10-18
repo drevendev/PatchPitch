@@ -27,6 +27,8 @@ class BodyText(HTMLParser):
 
 
 def main():
+    (ROOT / "submission").mkdir(parents=True, exist_ok=True)
+    (ROOT / "artifacts").mkdir(parents=True, exist_ok=True)
     raw=ROOT/"artifacts"/"ifs-devlog-0.12.html"
     parser=BodyText();parser.feed(raw.read_text(encoding="utf-8"))
     text="".join(parser.parts)

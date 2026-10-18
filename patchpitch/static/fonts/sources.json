@@ -1,0 +1,32 @@
+[
+  {
+    "file": "Manrope.ttf",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/manrope/Manrope%5Bwght%5D.ttf",
+    "sha256": "3ae11c49db0455a3cc33e37d380f20fdb8c7f8b41dc07625c177e3d87a9d6ae6",
+    "bytes": 164700
+  },
+  {
+    "file": "Manrope-OFL.txt",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/manrope/OFL.txt",
+    "sha256": "d6a309fcfb963d329a93baf9df66fa5f3c23a4be2b5f67edf24d6cafecde12ac",
+    "bytes": 4386,
+    "upstream_sha256": "58172e0c0fac2cda8a37b348164bb55e44b0e69051e557e92b1d3f6910141f7b",
+    "upstream_bytes": 4387,
+    "normalization": "Removed one trailing space; license wording unchanged. Hash describes the LF-normalized repository file."
+  },
+  {
+    "file": "Newsreader.ttf",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/newsreader/Newsreader%5Bopsz,wght%5D.ttf",
+    "sha256": "8a08d13f8a6c0d51be379a60af84f945f65369a67e509ee3c3bdcc421254d7c1",
+    "bytes": 451664
+  },
+  {
+    "file": "Newsreader-OFL.txt",
+    "url": "https://raw.githubusercontent.com/google/fonts/main/ofl/newsreader/OFL.txt",
+    "sha256": "865f0949b59fab5925506f80102dff3d12e8666412daf52d212db969d40adc25",
+    "bytes": 4394,
+    "upstream_sha256": "fdfad38143ec470553cae82a1e45320bdd1b9ec70415d37bd0171051d8a4ded8",
+    "upstream_bytes": 4394,
+    "normalization": "Removed one trailing space; license wording unchanged. Hash describes the LF-normalized repository file."
+  }
+]

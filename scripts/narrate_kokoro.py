@@ -12,6 +12,8 @@ BASE="https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-
 
 
 def main():
+    (ROOT / "submission").mkdir(parents=True, exist_ok=True)
+    (ROOT / "artifacts").mkdir(parents=True, exist_ok=True)
     parser=argparse.ArgumentParser()
     parser.add_argument("--voice",default="af_heart",choices=["af_heart","af_bella"])
     parser.add_argument("--preview",action="store_true")
@@ -20,7 +22,7 @@ def main():
     import soundfile as sf
     from kokoro_onnx import Kokoro
     directory=ROOT/".tools"/"kokoro"
-    directory.mkdir(exist_ok=True)
+    directory.mkdir(parents=True, exist_ok=True)
     for name in ["kokoro-v1.0.onnx","voices-v1.0.bin"]:
         if not (directory/name).exists():
             urllib.request.urlretrieve(BASE+name,directory/name)

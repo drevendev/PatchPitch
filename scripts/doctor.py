@@ -16,6 +16,8 @@ from patchpitch import generator
 
 
 def main():
+    (ROOT / "submission").mkdir(parents=True, exist_ok=True)
+    (ROOT / "artifacts").mkdir(parents=True, exist_ok=True)
     parser = argparse.ArgumentParser()
     parser.add_argument("--live", action="store_true")
     args = parser.parse_args()

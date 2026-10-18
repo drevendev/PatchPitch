@@ -35,3 +35,19 @@ cloning the owner's voice. Model files and audio are excluded from this reposito
 kokoro-onnx runtime: MIT, https://github.com/thewh1teagle/kokoro-onnx .
 Its dependencies retain their own licenses with their installed distributions;
 optional tooling does not add an audio dependency to the PatchPitch application.
+
+# Bundled interface fonts
+
+Manrope — Copyright 2018 The Manrope Project Authors.
+Newsreader — Copyright 2020 The Newsreader Project Authors.
+Both fonts are distributed under the SIL Open Font License 1.1.
+Original font files, full license texts and source URLs/checksums are retained in
+`patchpitch/static/fonts/`. Sources: https://github.com/google/fonts/tree/main/ofl/manrope
+and https://github.com/productiontype/Newsreader . No external font request is made
+when using the application.
+
+# Optional local Gemma 4 model
+
+The locally downloaded `gemma4:12b` distribution exposes the Apache License 2.0
+in its Ollama model metadata. Weights are not bundled with PatchPitch or covered
+by PatchPitch's MIT license. Model source: https://ollama.com/library/gemma4:12b .

@@ -1,11 +1,14 @@
 # Evaluation inputs
 
-`idle-fantasy-shop.json` is a selected subset of the actual published 0.12 update,
-from the owner's [public devlog](https://drevengames.itch.io/idle-fantasy-shop/devlog/1714671/title-012-plan-a-little-let-the-fields-rest)
-(2026-10-18). Future production skills/deeper trade come from the game page and
-are excluded. This input does not attempt to inventory every change in the devlog.
-The facts were extracted from the published writing, not an independent code diff;
-comparison against that devlog is an editorial exercise, not independent grounding.
+`idle-fantasy-shop.json` contains human-prepared technical notes from the actual
+0.11.1 → 0.12 code patch (`e83dddaa43ea7a5e084be9e5f5f9a0359511cc09` →
+`c4389af9fc1991e2385afbf46141f4a62e9e8839`). Its companion provenance JSON maps
+notes to implementation and test files at that release head. No game code is
+bundled with this example. The source repository was inspected locally, read-only;
+the private diff remains in ignored local artifacts. This is not an automatic
+Git importer. A short tone brief is derived from in-game item descriptions, with its code reference recorded separately. The existing public devlog is absent
+from generation input and the output grammar. It is comparison material only.
+The excluded internal note describes delivery implementation, not a future feature.
 
 `pocket-orchard.json` and `library-ledger.json` are illustrative, fictional products.
 They are not customer evidence. `beautifulrepo.json` paraphrases only the public

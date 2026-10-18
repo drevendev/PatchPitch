@@ -1,5 +1,19 @@
 # PatchPitch local development log
 
+## 2026-10-19 — formats, styles and auto tags
+
+- Added devlog, community and 280-character short-post formats with Warm, Clear
+  and Lively styles. Short outputs disclose unreferenced selected sources.
+- Added optional source-based hashtag suggestions, removable before export.
+- Kept generated formats and their edits in tab memory, with exact Markdown export.
+- Fixed nested Unreleased exclusion (#1) and locked output editing during requests (#2).
+- Prepared ignored output parents before evidence tooling runs (#3), retained
+  distinct evaluation attempts, and checked actual model configuration for comparisons (#4).
+- Deferred translation, product video generation and commit import to backlog #6–#8.
+
+Source publication is owner-approved. The article, generated video and local
+evidence remain excluded from Git and unpublished. This is not a package release.
+
 ## 2026-10-18 — v0.1 working local demo (unpublished)
 
 - Built the local product/audience/selected-change workflow with one Gemma request.
@@ -18,3 +32,30 @@ This records local implementation, not a public package release or independent a
 - Fixed Gemma's consecutive-user-turn prompt handling and bounded source-ID schema.
 - Added review warnings for spelled-out numbers/uncited facts and a required note for explicit backup instructions.
 - Added optional local Kokoro narration, with no speech stretching or packet-copy joins.
+
+## 2026-10-18 — local studio and generation iteration (not published)
+
+- Added the maker's optional voice reference, full source topics and a secondary section.
+- Preserved explicit limits and exceptions in constant source-sentence fields, with local checks.
+- Kept raw output and conservative automatic duplicate-removal records; blocked invented notes.
+- Reworked the compact green/paper studio with bundled OFL fonts and expandable fact cards.
+- Fixed the stale-server example error and enabled reload in the local launcher.
+- Added warm game-focused narration, original background music, eased motion and smooth transitions.
+
+These source changes are included in the repository update of 2026-10-19.
+Their generated media remain local and unpublished.
+
+## 2026-10-18 — independent patch input (local, not published)
+
+- Replaced devlog-derived example prose with technical facts from the actual
+  Idle Fantasy Shop 0.11.1 → 0.12 diff, with commit and file provenance.
+- Kept the original devlog for comparison only; the tone brief comes from in-game text.
+- Removed fixed announcement sentences and automatic prose cleanup from generation.
+- Showed the output schema to Gemma as context and rejected unfinished paragraphs.
+- Evaluated local Gemma 4 as well as Gemma 3; kept unsuccessful attempts and raw responses.
+
+- Replaced camera zoom/pan with fixed UI framing, quiet accents and soft scene reveals.
+- Added a PatchPitch-focused closing line, brand hold, final musical cadence and fade to silence.
+- Reproduced and removed the gray recording band caused by full-page screenshots during capture.
+- Added reversible disclosure animations, keyboard/reduced-motion coverage and full-text-preserving previews.
+- Source-review/export footage can explicitly replay the real saved draft; no additional inference is claimed.

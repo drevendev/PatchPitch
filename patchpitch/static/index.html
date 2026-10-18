@@ -1,37 +1,40 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PatchPitch — Your product deserves a great story.</title><link rel="stylesheet" href="/static/style.css"><script src="/static/app.js" defer></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PatchPitch — Your product deserves a great story.</title><link rel="preload" href="/static/fonts/Manrope.ttf" as="font" type="font/ttf" crossorigin><link rel="preload" href="/static/fonts/Newsreader.ttf" as="font" type="font/ttf" crossorigin><link rel="stylesheet" href="/static/style.css"><script src="/static/app.js" defer></script></head>
 <body>
-<header class="topbar"><a class="brand" href="/" aria-label="PatchPitch home"><span class="brand-mark">p.</span> PatchPitch<span class="version"> / 0.1</span></a><span id="model-status" class="local-status">Local writing studio</span></header>
+<header class="topbar"><a class="brand" href="/" aria-label="PatchPitch home"><span class="brand-mark">p.</span><span>PatchPitch<span class="version"> / 0.1</span></span></a><span class="studio-tag">THE ANNOUNCEMENT STUDIO</span><span id="model-status" class="local-status">Local writing studio</span></header>
 <main>
-<section class="intro"><p class="eyebrow">FROM SHIPPED TO SHARED</p><h1>Your product deserves<br>a great story<span class="accent">.</span></h1><p class="subtitle">Turn your changelog into an announcement people understand.</p></section>
+<section class="intro"><div><p class="eyebrow">A LITTLE UPDATE. A GOOD STORY.</p><h1>Your product deserves a great story<span class="accent">.</span></h1></div><p class="subtitle">Your changelog, with a little more life.<br>Written locally. Always yours.</p></section>
 <div class="workspace">
 <section class="input-panel" aria-labelledby="input-heading">
 <div class="section-top"><h2 id="input-heading"><span class="step">01</span> The raw material</h2><button id="example" class="text-button" type="button">Try an example ↗</button></div>
-<p id="example-label" class="helper" hidden>Example input — review the facts before generating.</p>
+<p id="example-label" class="helper example-label" hidden>Example input — review the facts before generating.</p>
 <form id="pitch-form">
-<div class="product-row"><div><label for="product">Product name</label><input id="product" maxlength="80" placeholder="Your next great thing" required></div><div><label for="release">Release label <span class="optional">optional</span></label><input id="release" maxlength="80" placeholder="October update"></div></div>
+<details id="selection-panel" class="selection-panel" hidden><summary><span class="selection-title">Choose your facts</span><span id="selection-count" class="selection-count"></span><span class="disclosure-arrow" aria-hidden="true">↗</span></summary><p class="helper">Only selected notes go to Gemma. Open a card to read the original.</p><div id="change-preview" class="change-preview" aria-label="Choose changes to include"></div></details>
+<div class="input-basics"><div class="input-fields">
+<div class="product-row"><div><label for="product">Product name</label><input id="product" maxlength="80" placeholder="Your next great thing" required></div><div><label for="release">Release <span class="optional">optional</span></label><input id="release" maxlength="80" placeholder="Version 0.12"></div></div>
 <label for="description">What does it do?</label><input id="description" maxlength="400" placeholder="A little context goes a long way" required>
-<label for="audience">Who is this for?</label><input id="audience" maxlength="180" placeholder="The people who will care about this update" required>
-<div class="label-row"><label for="changes">What changed?</label><span class="optional">one fact per line · up to 15</span></div>
-<textarea id="changes" rows="5" maxlength="6200" placeholder="Search notes by title.&#10;Export a notebook as Markdown.&#10;[planned] Cloud sync." required></textarea>
-<div id="change-preview" class="change-preview" aria-label="Choose changes to include"></div>
-<p class="helper">Uncheck anything internal, planned, or unconfirmed. Only selected facts go to the model.</p>
-<details class="optional-input"><summary>Add a call to action <span class="optional">optional</span></summary><label for="cta">Your exact call to action</label><input id="cta" maxlength="300" placeholder="Added exactly as you write it"></details>
+<label for="audience">Who is this for?</label><input id="audience" maxlength="180" placeholder="The people who will care" required>
+<div class="label-row"><label for="changes">What changed?</label><span class="optional">one note per line · up to 15</span></div>
+<textarea id="changes" rows="4" maxlength="6200" placeholder="Search notes by title.&#10;Export a notebook as Markdown.&#10;[planned] Cloud sync." required></textarea>
+</div></div>
+<div class="delivery-options"><div><label for="format">Format</label><select id="format"><option value="devlog">Devlog</option><option value="community">Community post</option><option value="short">Short post · 280</option></select></div><div><label for="style">Style</label><select id="style"><option value="warm">Warm</option><option value="clear">Clear</option><option value="lively">Lively</option></select></div><label class="tag-toggle" for="auto-tags"><input id="auto-tags" type="checkbox"><span>Auto tags<small id="tag-count-hint">up to 3</small></span></label></div>
+<p id="format-hint" class="helper format-hint">The full story, with every selected topic.</p>
+<details id="writing-options" class="optional-input"><summary>Voice &amp; call to action <span class="optional">optional</span><span aria-hidden="true">＋</span></summary><label for="voice">A short sample of your usual writing</label><textarea id="voice" rows="3" maxlength="1200" placeholder="Your voice, for style only. Facts come from the selected notes."></textarea><label for="cta">Your exact call to action</label><input id="cta" maxlength="300" placeholder="Added exactly as you write it"></details>
 <label class="confirmation"><input id="confirmed" type="checkbox" required><span>I confirm the selected changes belong in this announcement.</span></label>
-<button id="generate" class="primary" type="submit">Write the announcement <span aria-hidden="true">↗</span></button>
-<p id="status" role="status" aria-live="polite" class="status">Runs on your machine. Your final edit stays yours.</p>
+<button id="generate" class="primary" type="submit"><span>Write the announcement</span><span class="button-arrow" aria-hidden="true">↗</span></button>
+<p id="status" role="status" aria-live="polite" class="status">Local Gemma. Your words. Nothing auto-posted.</p>
 <p id="error" role="alert" class="error" hidden></p>
 </form>
 </section>
-<section class="output-panel" aria-labelledby="output-heading"><div class="section-top"><h2 id="output-heading"><span class="step">02</span> The story</h2><span class="draft-label">DRAFT</span></div>
+<section class="output-panel" aria-labelledby="output-heading"><div class="section-top"><h2 id="output-heading"><span class="step">02</span> The story</h2><span class="draft-label">YOUR NEXT GOOD STORY</span></div>
 <div class="paper">
-<div id="empty-state"><span class="paper-icon" aria-hidden="true">≡</span><p class="eyebrow">A LITTLE CLARITY GOES A LONG WAY</p><h3>You made the update.<br>Now give it a voice.</h3><p>Select your facts on the left.<br>A first draft starts here.</p><div class="empty-rule"></div><small>Local Gemma · Human final say</small></div>
-<div id="result" hidden><div class="result-heading"><p class="review-label">Draft — review before publishing</p><p id="timing" class="helper"></p></div><div id="draft-view"></div><label id="editor-label" for="editor" hidden>Edit Markdown</label><textarea id="editor" rows="15" hidden spellcheck="true"></textarea><p id="edited-label" class="helper" hidden>Edited by you — source links refer to the generated draft</p><div id="warnings" class="warnings" hidden></div></div>
+<div id="empty-state"><div class="empty-art" aria-hidden="true"><div class="mini-note"><span>PATCH NOTES</span><i></i><i></i><i></i></div><div class="mini-story"><span>A GOOD STORY</span><b>A little<br>more life.</b><i></i><i></i><em>↗</em></div><span class="art-spark">✳</span></div><p class="eyebrow">FROM SHIPPED TO SHARED</p><h3>You made the update.<br>Now give it a voice.</h3><p>Bring the facts. Keep your character.<br>Leave with a story worth sharing.</p><div class="empty-tags"><span>On your machine</span><span>In your voice</span><span>Ready to edit</span></div></div>
+<div id="result" hidden><div class="result-heading"><p class="review-label">DRAFT · review before publishing</p><p id="timing" class="helper"></p></div><div id="saved-drafts" class="saved-drafts" aria-label="Generated formats" hidden></div><p id="output-preset" class="output-preset"></p><div id="draft-view"></div><div id="tag-tools" hidden><div id="tag-chips" class="tag-chips" aria-label="Suggested hashtags"></div><p class="helper">Suggested from your facts. Remove a tag, or edit it in Markdown.</p></div><label id="editor-label" for="editor" hidden>Edit Markdown</label><textarea id="editor" rows="15" hidden spellcheck="true"></textarea><p id="character-count" class="helper" role="status" hidden></p><p id="edited-label" class="helper" hidden>Edited by you — source links refer to the generated draft</p><div id="warnings" class="warnings" hidden></div></div>
 </div>
-<div id="result-tools" hidden><div class="actions"><button id="edit" type="button" class="secondary">Edit draft</button><button id="copy" type="button" class="secondary">Copy Markdown</button><button id="download" type="button" class="secondary">Download Markdown ↓</button></div><details id="sources"><summary>Source notes <span class="optional">inspect the original facts</span></summary><p class="helper">Links show which notes the first draft cites. They do not establish that every sentence is accurate.</p><div id="source-list"></div></details></div>
+<div id="result-tools" hidden><div class="actions"><button id="edit" type="button" class="secondary">Edit draft <span aria-hidden="true">↗</span></button><button id="copy" type="button" class="secondary">Copy Markdown</button><button id="download" type="button" class="secondary">Download Markdown ↓</button></div><details id="sources"><summary>Source notes <span class="optional">inspect the original facts</span><span aria-hidden="true">＋</span></summary><p class="helper">Links show which notes the first draft cites. They do not establish that every sentence is accurate.</p><div id="source-list"></div></details></div>
 </section>
 </div>
-<footer><span>Small updates. Clear stories.</span><span>Local by default. Nothing is published here.</span></footer>
+<footer><span>MADE FOR THE THINGS YOU MAKE.</span><span>Local by default <i>·</i> Human final say</span></footer>
 </main>
 </body></html>

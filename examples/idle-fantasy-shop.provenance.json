@@ -1,0 +1,249 @@
+{
+  "kind": "HUMAN_PREPARED_TECHNICAL_NOTES_FROM_CODE_PATCH",
+  "base": "e83dddaa43ea7a5e084be9e5f5f9a0359511cc09",
+  "head": "c4389af9fc1991e2385afbf46141f4a62e9e8839",
+  "version": "0.12.0",
+  "repository": "drevendev/IdleShop (local read-only inspection)",
+  "devlog_used_as_input": false,
+  "voice_reference_empty": false,
+  "product_context": {
+    "path": "README.md",
+    "lines": [
+      3,
+      7
+    ],
+    "head": "c4389af9fc1991e2385afbf46141f4a62e9e8839"
+  },
+  "facts": {
+    "C01": [
+      {
+        "path": "src/domain/batch.ts",
+        "lines": [
+          12,
+          77
+        ]
+      },
+      {
+        "path": "src/domain/batch.test.ts",
+        "lines": [
+          37,
+          89
+        ]
+      },
+      {
+        "path": "src/domain/batch.test.ts",
+        "lines": [
+          111,
+          138
+        ]
+      },
+      {
+        "path": "src/domain/batch.test.ts",
+        "lines": [
+          313,
+          339
+        ]
+      },
+      {
+        "path": "src/locales/en.ts",
+        "lines": [
+          107,
+          107
+        ]
+      }
+    ],
+    "C02": [
+      {
+        "path": "src/domain/depletion.ts",
+        "lines": [
+          10,
+          64
+        ]
+      },
+      {
+        "path": "src/domain/depletion.test.ts",
+        "lines": [
+          31,
+          95
+        ]
+      },
+      {
+        "path": "src/domain/depletion.test.ts",
+        "lines": [
+          119,
+          207
+        ]
+      }
+    ],
+    "C03": [
+      {
+        "path": "src/content/items.ts",
+        "lines": [
+          488,
+          582
+        ]
+      },
+      {
+        "path": "src/content/actions.ts",
+        "lines": [
+          824,
+          1202
+        ]
+      },
+      {
+        "path": "src/content/upgrades.ts",
+        "lines": [
+          151,
+          228
+        ]
+      },
+      {
+        "path": "src/domain/content-012.test.ts",
+        "lines": [
+          79,
+          134
+        ]
+      }
+    ],
+    "C04": [
+      {
+        "path": "src/content/societies.ts",
+        "lines": [
+          60,
+          131
+        ]
+      },
+      {
+        "path": "src/domain/societyEffects.ts",
+        "lines": [
+          4,
+          30
+        ]
+      },
+      {
+        "path": "src/domain/content-012.test.ts",
+        "lines": [
+          198,
+          227
+        ]
+      }
+    ],
+    "C05": [
+      {
+        "path": "src/domain/chestViews.ts",
+        "lines": [
+          8,
+          50
+        ]
+      },
+      {
+        "path": "src/locales/en.ts",
+        "lines": [
+          1552,
+          1562
+        ]
+      },
+      {
+        "path": "src/ui/App.tsx",
+        "lines": [
+          1,
+          544
+        ]
+      },
+      {
+        "path": "src/ui/components/ChestSources.tsx",
+        "lines": [
+          1,
+          44
+        ]
+      }
+    ],
+    "C06": [
+      {
+        "path": "src/ui/components/JobsHelp.tsx",
+        "lines": [
+          6,
+          58
+        ]
+      },
+      {
+        "path": "src/locales/en.ts",
+        "lines": [
+          1458,
+          1577
+        ]
+      },
+      {
+        "path": "src/locales/ru.ts",
+        "lines": [
+          1458,
+          1577
+        ]
+      },
+      {
+        "path": "src/ui/components/TrackDialogs.tsx",
+        "lines": [
+          1,
+          527
+        ]
+      }
+    ],
+    "C07": [
+      {
+        "path": "src/application/session.ts",
+        "lines": [
+          980,
+          1105
+        ]
+      },
+      {
+        "path": "src/persistence/release-012.test.ts",
+        "lines": [
+          483,
+          648
+        ]
+      },
+      {
+        "path": "src/locales/en.ts",
+        "lines": [
+          8,
+          50
+        ]
+      }
+    ],
+    "C08": [
+      {
+        "path": "src/persistence/migrations.ts",
+        "lines": [
+          901,
+          991
+        ]
+      },
+      {
+        "path": "src/persistence/release-012.test.ts",
+        "lines": [
+          274,
+          301
+        ]
+      },
+      {
+        "path": "src/locales/en.ts",
+        "lines": [
+          400,
+          401
+        ]
+      }
+    ],
+    "C09": []
+  },
+  "voice_reference_kind": "tone brief derived from in-game item descriptions, not announcement prose",
+  "voice_source": {
+    "path": "src/locales/en.ts",
+    "lines": [
+      1458,
+      1502
+    ]
+  },
+  "patch_sha256": "7c65ffbf79065ae63a146363d8de6844220103d176477f1989c331d994662b2b",
+  "local_patch_artifact": "artifacts/ifs-patch/runtime-traced.patch (ignored; private code, not shipped)"
+}
