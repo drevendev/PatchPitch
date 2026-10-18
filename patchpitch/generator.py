@@ -13,6 +13,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from .models import Draft, PITCH_SCHEMA, PitchInput, PostDraft
+from . import telemetry
 from .formats import FORMATS, STYLES, tag_candidates, tag_limit, writing_instructions
 from .validation import DraftError, blocks, markdown, validate_draft, required_note_ids
 
@@ -167,11 +168,44 @@ def _payload(request, schema, prompt):
 
 
 def generate(request: PitchInput):
+    with telemetry.generation(request.format) as observation:
+        try:
+            result = _generate(request, observation)
+            if observation.trace_id:
+                result["meta"]["sentry_trace_id"] = observation.trace_id
+            return result
+        except GenerationError as exc:
+            observation.error(exc.code)
+            raise
+        except Exception:
+            observation.error("unexpected_error")
+            raise
+
+
+def _generate(request: PitchInput, observation):
     start = time.perf_counter()
     prompt = read_prompt(request.format)
     payload = build_payload(request, prompt=prompt)
-    raw = ollama_json("/api/chat", payload, timeout=TIMEOUT)
+    with observation.span("ollama", MODEL) as span:
+        raw = ollama_json("/api/chat", payload, timeout=TIMEOUT)
+        span.response(raw)
     elapsed = round(time.perf_counter() - start, 3)
+    with observation.span("validation"):
+        draft, raw_draft, warnings, count = validate_response(raw, request, payload)
+    limit = FORMATS[request.format]["limit"]
+    sources = {c.id: c.text for c in request.changes if c.include}
+    used={source for _,block in blocks(draft) for source in block.source_ids}
+    return {"draft": draft.model_dump(), "raw_draft":raw_draft,"automated_cleanup":[], "prose_assembly":"Model paragraphs formatted as Markdown; no words rewritten", "markdown": markdown(draft, request.cta_text), "body_markdown": markdown(draft, request.cta_text, include_tags=False), "warnings": warnings,
+            "presentation":{"format":request.format,"format_label":FORMATS[request.format]["label"],"style":request.style,"style_label":STYLES[request.style]["label"],"auto_tags":request.auto_tags,"cta_text":request.cta_text,"characters":count,"limit":limit},
+            "omitted_source_ids":sorted(set(sources)-used),
+            "sources": sources, "source_map": [{"block": label, "source_ids": block.source_ids} for label, block in blocks(draft)],
+            "meta": {"mode": "LIVE_MODEL", "model": raw.get("model", MODEL), "elapsed_seconds": elapsed, "options": OPTIONS, "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
+                     "request_sha256":hashlib.sha256(json.dumps(payload,sort_keys=True,ensure_ascii=False).encode()).hexdigest(),
+                     "thinking_enabled":payload.get("think",False),
+                     "prompt_eval_count": raw.get("prompt_eval_count"), "eval_count": raw.get("eval_count"), "total_duration_ns": raw.get("total_duration")}}
+
+
+def validate_response(raw, request, payload):
     try:
         if not raw.get("done") or raw.get("done_reason") == "length":
             raise GenerationError("incomplete_response", "The model did not finish its draft. Try again manually.")
@@ -194,16 +228,7 @@ def generate(request: PitchInput):
     except (ValidationError, json.JSONDecodeError, KeyError, TypeError, AttributeError, DraftError) as exc:
         message = str(exc) if isinstance(exc, DraftError) else "The model returned invalid JSON or an invalid draft structure. Try again manually."
         raise GenerationError("invalid_draft", message) from exc
-    sources = {c.id: c.text for c in request.changes if c.include}
-    used={source for _,block in blocks(draft) for source in block.source_ids}
-    return {"draft": draft.model_dump(), "raw_draft":raw_draft,"automated_cleanup":[], "prose_assembly":"Model paragraphs formatted as Markdown; no words rewritten", "markdown": markdown(draft, request.cta_text), "body_markdown": markdown(draft, request.cta_text, include_tags=False), "warnings": warnings,
-            "presentation":{"format":request.format,"format_label":FORMATS[request.format]["label"],"style":request.style,"style_label":STYLES[request.style]["label"],"auto_tags":request.auto_tags,"cta_text":request.cta_text,"characters":count,"limit":limit},
-            "omitted_source_ids":sorted(set(sources)-used),
-            "sources": sources, "source_map": [{"block": label, "source_ids": block.source_ids} for label, block in blocks(draft)],
-            "meta": {"mode": "LIVE_MODEL", "model": raw.get("model", MODEL), "elapsed_seconds": elapsed, "options": OPTIONS, "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
-                     "request_sha256":hashlib.sha256(json.dumps(payload,sort_keys=True,ensure_ascii=False).encode()).hexdigest(),
-                     "thinking_enabled":payload.get("think",False),
-                     "prompt_eval_count": raw.get("prompt_eval_count"), "eval_count": raw.get("eval_count"), "total_duration_ns": raw.get("total_duration")}}
+    return draft, raw_draft, warnings, count
 
 
 def validate_contract(draft: Draft, schema: dict):

@@ -73,6 +73,9 @@ async function prepare() {
   if (!text.trim()) {changes = []; $("change-preview").replaceChildren(); $("selection-panel").hidden=true; previewText = text; return;}
   const data = await jsonRequest("/api/prepare", {text});
   if (text !== $("changes").value) return;
+  applyPrepared(text, data);
+}
+function applyPrepared(text, data) {
   previewText = text; changes = data.changes;
   $("confirmed").checked = false;
   $("change-preview").replaceChildren();
@@ -101,16 +104,24 @@ async function prepare() {
 }
 $("changes").addEventListener("input", () => {clearTimeout(previewTimer); $("confirmed").checked = false; previewTimer = setTimeout(() => prepare().catch(e => error(e.message)), 250);});
 $("example").addEventListener("click", async () => {
+  if (busy) return;
   if (edited && !confirm("Replace the input with the illustrative example? Your current draft will stay visible.")) return;
+  setBusy(true); $("status").textContent="Loading the example…";
   try {
     const response=await fetch("/static/example.json");
     if(!response.ok) throw new Error("The example could not be loaded. Your current input is still here.");
     const data=await response.json();
     const fields={product:data.product.name,description:data.product.description,audience:data.audience,release:data.release_label,voice:data.voice_reference || "",changes:data.changes.map(c=>c.text).join("\n"),cta:data.cta_text};
+    // Reserve loading through preparation, then replace the input atomically.
+    // A failed fetch/prepare leaves the current form and draft untouched.
+    const prepared=await jsonRequest("/api/prepare", {text:fields.changes});
     for(const [id,value] of Object.entries(fields)) $(id).value=value;
+    applyPrepared(fields.changes, prepared);
     $("example-label").textContent=`Code-patch input · ${data.product.name} ${data.release_label} · review the selected facts before generating.`;
-    $("example-label").hidden=false;error("");await prepare();
-  } catch(e) {error(e.message);}
+    $("example-label").hidden=false;error("");
+    $("status").textContent="Example loaded. Review the selected facts before generating.";
+  } catch(e) {error(e.message);$("status").textContent="Your input and any previous draft are still here.";}
+  finally {setBusy(false);}
 });
 function setBusy(value) {
   busy = value; $("generate").disabled = value; $("example").disabled = value;
@@ -202,7 +213,7 @@ function render(data, saved=null) {
 }
 $("pitch-form").addEventListener("submit", async event => {
   event.preventDefault(); if (busy) return;
-  error("");
+  setBusy(true); error("");
   try {
     await prepare();
     if (!$("confirmed").checked) throw new Error("Review the selected changes and confirm they belong in this announcement.");
@@ -212,8 +223,9 @@ $("pitch-form").addEventListener("submit", async event => {
     setBusy(true); const start = performance.now(); $("status").textContent="Writing with local Gemma… 0.0s";
     const timer = setInterval(() => $("status").textContent=`Writing with local Gemma… ${((performance.now()-start)/1000).toFixed(1)}s`, 200);
     try {const data = await jsonRequest("/api/pitch",body);render(data);$("status").textContent="Your draft is ready to review. Nothing has been published.";}
-    finally {clearInterval(timer);setBusy(false);}
+    finally {clearInterval(timer);}
   } catch (e) {error(e.message);$("status").textContent="Your input and any previous draft are still here.";}
+  finally {setBusy(false);}
 });
 function openEditor() {
   if (!result || busy) return;

@@ -107,8 +107,49 @@ missing note is an error. Unreferenced selected facts also trigger a warning.
 These are inspection checks, not semantic verification.
 
 Input and draft variants are not persisted automatically. There are no accounts, database,
-social integrations, publishing endpoints or telemetry. Excluded facts and CTA
+social integrations or publishing endpoints. Telemetry is off unless you explicitly
+configure the optional Sentry DSN described below. Excluded facts and CTA
 never enter the model payload; the server appends the supplied CTA. HTML is text.
+
+## Optional Sentry diagnostics
+
+Without `PATCHPITCH_SENTRY_DSN`, no SDK client is initialized and generation stays
+local. To opt in, set the DSN in the process environment before starting the app:
+
+```powershell
+$env:PATCHPITCH_SENTRY_DSN = 'YOUR_PROJECT_DSN'
+$env:PATCHPITCH_SENTRY_RELEASE = (git rev-parse HEAD)
+.\.venv\Scripts\python.exe -m uvicorn patchpitch.app:app --host 127.0.0.1 --port 8000
+```
+
+The optional export contains a generation transaction, one span around the real
+Ollama request and one around draft validation. It includes elapsed time, format,
+requested/actually returned model, available input/output token counts and bounded
+error codes. Missing token usage or returned identity stays absent. There is no
+agent loop or estimated model cost. `/api/health` reports `sentry_enabled`; when
+enabled, successful response metadata includes a locally generated trace ID.
+An ID alone does not confirm that Sentry received it.
+
+The pinned Python SDK uses manual instrumentation, with automatic integrations,
+PII collection, local variables, source context, request bodies, logs, metrics,
+sessions and profiling disabled. Completed transactions use the static transport
+format so the same filter covers all spans. Both events and final transport
+envelopes are rebuilt from a small allowlist. Drafts, notes, voice samples, prompt
+messages, output text, user data, breadcrumbs, extras, attachments and sampling
+baggage are excluded. Delivery failure leaves the generation result unchanged.
+
+Use an existing free Sentry project with paid overages disabled. No account,
+project, paid subscription or API token is created by the app. The DSN is a local
+configuration value and must not be committed. See Sentry's
+[manual AI instrumentation](https://docs.sentry.io/platforms/python/agent-tracing/manual-instrumentation/)
+and [data collection documentation](https://docs.sentry.io/platforms/python/data-management/data-collected/).
+
+`scripts/sentry_check.py --offline --output artifacts/sentry-offline-check` audits
+serialized transport with a deliberately invalid public fixture and no network.
+`--live` instead performs one real generation on the public fictional Pocket
+Orchard example, then a separate `CONTROLLED_FAILURE` validation check. It requires
+your DSN and Ollama. It retains local IDs and payloads for review; it does not
+claim remote acceptance or publish evidence automatically.
 
 ## Development checks
 

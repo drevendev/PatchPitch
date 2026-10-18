@@ -91,6 +91,63 @@ def test_browser_explains_a_stale_backend(ui_url,input_data):
         browser.close()
 
 
+@pytest.mark.parametrize("failure",[None,"example","prepare"])
+def test_example_loading_and_generation_cannot_overlap(ui_url,input_data,draft_data,failure):
+    """Hold both operations; failed loading must preserve input and edited prose."""
+    from playwright.sync_api import sync_playwright,expect
+    original="# Original draft\n\nKeep these words.\n"
+    edited="# My edited draft\n\nStill here.\n"
+    response={"draft":draft_data,"markdown":original,"warnings":[],"sources":{},"source_map":[],"meta":{"model":"MOCK","elapsed_seconds":1.0}}
+    example=json.loads(json.dumps(input_data));example["product"]["name"]="Delayed example"
+    examples=[];pitches=[];pending_example=[];pending_pitch=[];preparations=[]
+    with sync_playwright() as p:
+        browser=p.chromium.launch();context=browser.new_context(permissions=["clipboard-read","clipboard-write"]);page=context.new_page()
+        def load_example(route):
+            examples.append(route)
+            if len(examples)==1:route.fulfill(json=input_data)
+            else:pending_example.append(route)
+        def prepare_example(route):
+            preparations.append(route)
+            if failure=="prepare" and len(preparations)==2:
+                route.fulfill(status=422,json={"detail":"MOCK preparation failure"})
+            else:route.continue_()
+        def generate(route):
+            pitches.append(route.request.post_data_json)
+            if len(pitches)==1:route.fulfill(json=response)
+            else:pending_pitch.append(route)
+        page.route("**/static/example.json",load_example)
+        page.route("**/api/prepare",prepare_example)
+        page.route("**/api/pitch",generate)
+        page.goto(ui_url);page.locator("#example").click();page.locator("#confirmed").check();page.locator("#generate").click()
+        page.locator("#result").wait_for(state="visible");page.locator("#edit").click();page.locator("#editor").fill(edited)
+        page.once("dialog",lambda d:d.accept());page.locator("#example").click()
+        expect(page.locator("#generate")).to_be_disabled()
+        expect(page.locator("#editor")).to_be_disabled()
+        assert len(pending_example)==1
+        page.locator("#pitch-form").dispatch_event("submit")
+        assert len(pitches)==1 and page.locator("#product").input_value()==input_data["product"]["name"]
+        if failure=="example":pending_example[0].fulfill(status=503,json={})
+        else:pending_example[0].fulfill(json=example)
+        expect(page.locator("#generate")).to_be_enabled()
+        expected_name=input_data["product"]["name"] if failure else "Delayed example"
+        assert page.locator("#product").input_value()==expected_name
+        assert page.locator("#editor").input_value()==edited
+        assert page.locator("#editor").is_enabled()
+        if failure:assert page.locator("#error").is_visible()
+        page.locator("#confirmed").check()
+        page.once("dialog",lambda d:d.accept());page.locator("#generate").click()
+        expect(page.locator("#example")).to_be_disabled()
+        page.locator("#example").dispatch_event("click")
+        assert len(examples)==2 and len(pending_pitch)==1
+        assert pitches[-1]["product"]["name"]==expected_name
+        assert page.locator("#product").input_value()==expected_name
+        pending_pitch[0].fulfill(json={**response,"markdown":"# Correct response\n\nSame request.\n"})
+        expect(page.locator("#example")).to_be_enabled()
+        page.locator("#copy").click()
+        assert page.evaluate("() => navigator.clipboard.readText()").replace("\r\n","\n")=="# Correct response\n\nSame request.\n"
+        browser.close()
+
+
 @pytest.mark.parametrize("fails",[False,True])
 def test_delayed_regeneration_locks_editor_and_restores_it(ui_url,input_data,draft_data,fails):
     from playwright.sync_api import sync_playwright

@@ -1,0 +1,12 @@
+{
+  "title": {"text": "Find your notes, keep your words", "source_ids": ["C01", "C02"]},
+  "intro": {"text": "TODO controlled invalid fixture.", "source_ids": ["C01", "C02"]},
+  "highlights": [
+    {"text": "Search notes by title.", "source_ids": ["C01"]},
+    {"text": "Export a notebook as Markdown.", "source_ids": ["C02"]},
+    {"text": "Saving no longer duplicates a note.", "source_ids": ["C03"]}
+  ],
+  "details": [],
+  "note": null,
+  "hashtags": []
+}
