@@ -14,6 +14,7 @@ def main():
     capture=read("submission/capture-evidence.json")
     video=read("submission/video-evidence.json")
     evaluation=read("submission/evaluation-summary.json")
+    publication=read("submission/publication.json") if (ROOT/"submission/publication.json").exists() else {}
     article=(ROOT/"submission/article.md").read_text(encoding="utf-8")
     assets=["artifacts/patchpitch-demo.mp4","artifacts/raw-demo.webm","artifacts/poster.png","artifacts/captions.srt","artifacts/narration.txt","artifacts/generated.png","artifacts/sources.png","artifacts/demo-announcement.md"]
     report={
@@ -31,14 +32,14 @@ def main():
         "video":{"status":video["status"],"duration_seconds":video["duration_seconds"],"visual_qa":video["visual_qa"],"audio":video["audio"]},
         "article":{"path":"submission/article.md","unresolved_todos":article.count("[[TODO:"),"owner_review":"PENDING"},
         "FINAL_READY":False,
-        "blockers":["Owner quality/article review","Owner source license decision","Approval for public source/assets","Accessible public repository/video links and submitted commit","DEV owner submission"],
+        "blockers":["Owner quality/article review","Video/article publication explicitly withheld","Public video/screenshot links after separate approval","DEV owner submission"],
         "partner_evidence":"submission/partner-evidence.json",
-        "published":False,"new_payments":0,"paid_api_calls":0,
+        "code_publication":publication,"article_published":False,"video_published":False,"new_payments":0,"paid_api_calls":0,
         "deadline":"2026-10-19T09:59:00+03:00",
         "runtime_url":"http://127.0.0.1:8000",
-        "source_repository":"LOCAL WORKSPACE ONLY; no public repository created",
+        "source_repository":publication.get("repository_url","LOCAL WORKSPACE ONLY"),
         "assets":[{"path":path,"bytes":(ROOT/path).stat().st_size,"sha256":hashlib.sha256((ROOT/path).read_bytes()).hexdigest()} for path in assets],
-        "limitations":["Valid source IDs do not establish semantic accuracy","Three-case comparison is not a controlled benchmark; owner scores pending","Initial warmup overlapped the first browser capture; first raw capture retained","GitHub Linux workflow prepared but not executed","Missing supplementary handoff files reconstructed only from 01_SPEC"]
+        "limitations":["Valid source IDs and numeric warnings do not establish semantic accuracy","Model/prompt/input tuning is not a controlled benchmark; all attempts retained","Final copy includes an explicit editorial edit, separate from untouched model draft","Article/video remain local by explicit owner instruction","Missing supplementary handoff files reconstructed only from 01_SPEC"]
     }
     (ROOT/"submission/evidence.json").write_text(json.dumps(report,indent=2,ensure_ascii=False),encoding="utf-8")
     print(json.dumps({"APP_WORKING":report["APP_WORKING"],"LIVE_MODEL":report["LIVE_MODEL"],"FINAL_READY":False,"unresolved_todos":report["article"]["unresolved_todos"]}))

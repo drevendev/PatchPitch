@@ -52,7 +52,7 @@ class Block(StrictModel):
 
 
 class TitleBlock(Block):
-    text: Annotated[str, StringConstraints(min_length=1, max_length=72)]
+    text: Annotated[str, StringConstraints(min_length=1, max_length=120)]
 
 
 class Draft(StrictModel):

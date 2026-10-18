@@ -32,6 +32,9 @@ def test_excluded_is_absent_from_actual_transport(monkeypatch, input_data, draft
     serialized = json.dumps(sent[0])
     assert "Cloud sync" not in serialized and "C04" not in serialized
     assert sent[0]["stream"] is False and isinstance(sent[0]["format"], dict)
+    assert len(sent[0]["messages"]) == 1
+    assert sent[0]["messages"][0]["role"] == "user"
+    assert "UNTRUSTED SOURCE DATA" in sent[0]["messages"][0]["content"]
     ids=sent[0]["format"]["$defs"]["Block"]["properties"]["source_ids"]
     assert ids["items"]["enum"] == ["C01","C02","C03"]
     assert ids["maxItems"] == 3 and ids["uniqueItems"] is True
@@ -81,6 +84,30 @@ def test_spelled_number_drift_is_flagged(input_data, draft_data):
     draft_data["intro"]["text"] = "Queue nine items at level 10."
     warnings = validate_draft(Draft.model_validate(draft_data), PitchInput.model_validate(input_data))
     assert any("“9”" in warning for warning in warnings)
+
+
+def test_cut_off_headline_is_rejected(input_data,draft_data):
+    draft_data["title"]["text"]="Avoid duplicate check-"
+    with pytest.raises(DraftError,match="cut off"):
+        validate_draft(Draft.model_validate(draft_data),PitchInput.model_validate(input_data))
+
+
+def test_explicit_backup_cannot_silently_disappear(input_data,draft_data):
+    input_data["changes"][0]["text"]="Export a backup from Settings before moving devices."
+    request=PitchInput.model_validate(input_data)
+    payload=generator.build_payload(request)
+    assert "note" in payload["format"]["required"]
+    with pytest.raises(DraftError,match="backup"):
+        validate_draft(Draft.model_validate(draft_data),request)
+    draft_data["note"]={"text":input_data["changes"][0]["text"],"source_ids":["C01"]}
+    validate_draft(Draft.model_validate(draft_data),request)
+
+
+def test_unreferenced_selected_fact_warns(input_data,draft_data):
+    draft_data["title"]["source_ids"]=["C01"]
+    draft_data["intro"]["source_ids"]=["C01"]
+    warnings=validate_draft(Draft.model_validate(draft_data),PitchInput.model_validate(input_data))
+    assert any("C02" in warning for warning in warnings)
 
 
 def test_markers_and_unreleased():

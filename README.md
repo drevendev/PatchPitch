@@ -26,6 +26,10 @@ installed model and `PATCHPITCH_TIMEOUT` to a timeout in seconds (default 180,
 maximum 600). `.env.example` documents process settings; the app does not read
 `.env` files automatically. No hosted inference key or paid fallback.
 
+The real Idle Fantasy Shop demo also exercises `gemma3:12b`. To use that larger
+model, run `ollama pull gemma3:12b`, set `$env:PATCHPITCH_MODEL='gemma3:12b'`, then
+start the app. It needs more memory and is slower; neither model guarantees accuracy.
+
 ## From facts to a final edit
 
 1. Add the product, audience and 1–15 short change notes (6,000 characters total).
@@ -45,6 +49,9 @@ A small model can still change a quantity or overstate a feature. Links and
 numbers absent from the input trigger review warnings, including common number
 words. Every output stays **Draft — review before publishing**. After editing,
 links still refer to the original generated draft. Export uses your current text.
+Explicit backup/compatibility instructions require a source-linked note; a
+missing note is an error. Unreferenced selected facts also trigger a warning.
+These are inspection checks, not semantic verification.
 
 Input and history are not saved automatically. There are no accounts, database,
 social integrations, publishing endpoints or telemetry. Excluded facts and CTA

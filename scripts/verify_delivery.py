@@ -16,7 +16,7 @@ def main():
         page.on("pageerror",lambda e:errors.append(str(e)))
         page.goto("http://127.0.0.1:8000",wait_until="networkidle")
         page.get_by_role("button",name="Try an example").click()
-        page.get_by_role("checkbox",name="Include C04").wait_for()
+        page.get_by_role("checkbox",name="Include C05").wait_for()
         for width,height in [(1440,1000),(390,844)]:
             page.set_viewport_size({"width":width,"height":height})
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")

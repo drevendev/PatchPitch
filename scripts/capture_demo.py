@@ -1,5 +1,6 @@
 """Record one real UI → local Gemma → edit → export flow. No network mocking."""
 import hashlib
+import argparse
 import json
 import os
 import shutil
@@ -18,6 +19,9 @@ def digest(value):
 
 
 def main():
+    parser=argparse.ArgumentParser()
+    parser.add_argument("--edit-file",type=Path,help="Explicit local editorial text; never substitutes for the model response")
+    args=parser.parse_args()
     artifacts=ROOT/"artifacts"
     raw_dir=artifacts/"raw"
     raw_dir.mkdir(parents=True,exist_ok=True)
@@ -72,8 +76,9 @@ def main():
             lines=original.splitlines()
             # Real editorial change remains explicit, separate from model output.
             lines[0]="# Plan your crafting. Give the fields a rest."
-            edited="\n".join(lines)+"\n"
+            edited=args.edit_file.read_text(encoding="utf-8") if args.edit_file else "\n".join(lines)+"\n"
             page.locator("#editor").fill(edited)
+            page.locator("#editor").evaluate("el => { el.scrollTop=0; el.setSelectionRange(0,0); }")
             page.wait_for_timeout(3000)
             page.get_by_role("button",name="Copy Markdown",exact=True).click()
             assert page.evaluate("navigator.clipboard.readText()").replace("\r\n", "\n") == edited
@@ -85,7 +90,7 @@ def main():
             assert destination.read_text(encoding="utf-8") == edited
             page.wait_for_timeout(2500)
             page.screenshot(path=str(artifacts/"edited.png"))
-            evidence.update(status="EXERCISED",input_sha256=digest(evidence["input"]),output_sha256=digest(evidence["response"]),export_sha256=hashlib.sha256(destination.read_bytes()).hexdigest(),manual_edit={"kind":"Scripted editorial edit, not owner quality assessment","original_title":original.splitlines()[0],"edited_title":lines[0]},clipboard_matches_export=True)
+            evidence.update(status="EXERCISED",input_sha256=digest(evidence["input"]),output_sha256=digest(evidence["response"]),export_sha256=hashlib.sha256(destination.read_bytes()).hexdigest(),manual_edit={"kind":"Explicit scripted editorial edit, separate from untouched model output; owner quality review pending","original_markdown":original,"edited_markdown":edited,"original_title":original.splitlines()[0],"edited_title":edited.splitlines()[0]},clipboard_matches_export=True)
             mark("end")
         except Exception as exc:
             evidence.update(status="FAILED",error=str(exc))

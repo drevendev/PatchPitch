@@ -13,6 +13,16 @@ ART=ROOT/"artifacts"
 os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH",str(ROOT/".tools"/"browsers"))
 from playwright.sync_api import sync_playwright
 
+NARRATION_CUES=[
+    (0,5,"Your product deserves a great story."),
+    (5,12,"You shipped the update. Now you need to tell your players what changed."),
+    (12,22,"This is Idle Fantasy Shop's real update. Pick the changes that shipped, and leave future plans out."),
+    (22,34,"Local Gemma turns those facts into a short announcement. The original wait is shown here, with the pause shortened."),
+    (34,45,"Open the source notes. Check the original facts. Then make the final edit in your own words."),
+    (45,54,"Copy or download the Markdown. Your draft is ready for review. Nothing is posted automatically."),
+    (54,63,"PatchPitch. Built with local Gemma. Small updates. Clear stories.")
+]
+
 
 def run(args):
     result=subprocess.run([str(a) for a in args],cwd=ART,capture_output=True,text=True,encoding="utf-8",errors="replace")
@@ -41,15 +51,7 @@ def main():
     if not ffprobe or not Path(ffprobe).exists():
         raise RuntimeError("ffprobe required for final verification; raw demo remains available")
     elapsed=evidence["response"]["meta"]["elapsed_seconds"]
-    cues=[
-        (0,5,"Your product deserves a great story."),
-        (5,12,"You shipped the update. Now you need to tell your players what changed."),
-        (12,22,"This is Idle Fantasy Shop's real update. Pick the changes that shipped, and leave future plans out."),
-        (22,34,"Local Gemma turns those facts into a short announcement. The original wait is shown here, with the pause shortened."),
-        (34,45,"Open the source notes. Check the original facts. Then make the final edit in your own words."),
-        (45,54,"Copy or download the Markdown. Your draft is ready for review. Nothing is posted automatically."),
-        (54,63,"PatchPitch. Built with local Gemma. Small updates. Clear stories.")
-    ]
+    cues=NARRATION_CUES
     def timestamp(t): return f"00:{int(t)//60:02}:{int(t)%60:02},000"
     (ART/"captions.srt").write_text("\n\n".join(f"{i}\n{timestamp(start)} --> {timestamp(end)}\n{text}" for i,(start,end,text) in enumerate(cues,1))+"\n",encoding="utf-8")
     (ART/"narration.txt").write_text("\n\n".join(text for _,_,text in cues)+"\n",encoding="utf-8")

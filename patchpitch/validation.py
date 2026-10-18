@@ -21,6 +21,12 @@ def numeric_claims(text):
     return digits | {NUMBER_WORDS[word] for word in words}
 
 
+def required_note_ids(request: PitchInput) -> list[str]:
+    # Narrow, explicit owner instructions; this does not infer release safety.
+    pattern=r"\b(?:export|make|keep|create|take)\b[^.]{0,60}\bbackup\b|\bnot backward compatible\b|\bbreaking change\b"
+    return [c.id for c in request.changes if c.include and re.search(pattern,c.text,re.I)]
+
+
 def prepare_lines(text: str) -> list[dict]:
     lines = [re.sub(r"^\s*[-*+]\s+", "", line).strip() for line in text.splitlines() if line.strip()]
     if not 1 <= len(lines) <= 15 or sum(map(len, lines)) > 6000:
@@ -46,9 +52,18 @@ def blocks(draft: Draft):
 
 
 def validate_draft(draft: Draft, request: PitchInput) -> list[str]:
+    if re.search(r"[-–—,:;]$",draft.title.text):
+        raise DraftError("The headline appears cut off. Please generate again.")
+    required_notes=required_note_ids(request)
+    if required_notes and (draft.note is None or not set(required_notes)<=set(draft.note.source_ids)):
+        raise DraftError("The draft omitted an explicit backup or compatibility note. Please generate again.")
     allowed = {c.id for c in request.changes if c.include}
     source_text = " ".join([request.product.name, request.product.description, request.audience, request.release_label] + [c.text for c in request.changes if c.include])
     warnings = []
+    used={source for _,block in blocks(draft) for source in block.source_ids}
+    unused=allowed-used
+    if unused:
+        warnings.append("Selected facts not referenced in this draft: " + ", ".join(sorted(unused)) + ". Check whether an important change was omitted.")
     for label, block in blocks(draft):
         if len(set(block.source_ids)) != len(block.source_ids):
             raise DraftError(f"{label} contains duplicate source IDs. Please generate again.")
