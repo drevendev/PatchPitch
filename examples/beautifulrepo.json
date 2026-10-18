@@ -1,0 +1,13 @@
+{
+  "product": {"name": "BeautifulRepo", "description": "Guides and examples for clear, useful software repositories."},
+  "audience": "Developers writing a README for a command-line tool",
+  "release_label": "CLI documentation starter",
+  "changes": [
+    {"id": "C01", "text": "Added a source-backed guide for command-line repository READMEs.", "include": true},
+    {"id": "C02", "text": "Added a runnable, dependency-free CSV row-counting example with black-box tests.", "include": true},
+    {"id": "C03", "text": "The guide distinguishes a source invocation from an installable or released package and links to official GitHub and Python Packaging guidance.", "include": true},
+    {"id": "C04", "text": "These are educational materials, not a published CLI package or cross-platform certification.", "include": true}
+  ],
+  "cta_text": "Read the CLI documentation guide in BeautifulRepo.",
+  "confirmed": true
+}

@@ -1,0 +1,3 @@
+# Optional demo tooling; never imported by the app or needed by CI.
+kokoro-onnx==0.6.1
+soundfile==0.14.0

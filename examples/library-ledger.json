@@ -1,0 +1,13 @@
+{
+  "product": {"name": "Library Ledger", "description": "A checkout tracker for a volunteer-run library. Illustrative fictional product."},
+  "audience": "Library volunteers who do not write software",
+  "release_label": "Checkout update",
+  "changes": [
+    {"id": "C01", "text": "Replaced case-sensitive title matching with case-insensitive matching in the book lookup field.", "include": true},
+    {"id": "C02", "text": "A failed CSV import now reports the affected row instead of only showing a generic error.", "include": true},
+    {"id": "C03", "text": "Prevented duplicate checkout records when the Save button is pressed twice.", "include": true},
+    {"id": "C04", "text": "[internal] Refactored the database adapter.", "include": false}
+  ],
+  "cta_text": "",
+  "confirmed": true
+}

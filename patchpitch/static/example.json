@@ -1,0 +1,14 @@
+{
+  "product": {"name": "Idle Fantasy Shop", "description": "An idle game about running a fantasy shop in Latchford, crafting goods and supplying its shelves."},
+  "audience": "Returning players who want to know what they can do in version 0.12",
+  "release_label": "0.12",
+  "changes": [
+    {"id":"C01","text":"At Workshop level 10, use Crafting Batch to plan three ordered jobs. The plan runs once, waits for missing ingredients and resumes when supplied. Workers can supply materials while you craft.","include":true},
+    {"id":"C02","text":"Advanced gathering puts pressure on a biome and slows later cycles. Resting a biome lets it recover. Basic brushwood, ashwood and reed gathering does not exhaust biomes.","include":true},
+    {"id":"C03","text":"Craft ten new goods, including waxed wraps, linen market bags and oak counter trays. New late-game shelf upgrades provide more space for goods.","include":true},
+    {"id":"C04","text":"Existing shops, workers, purchases, progress and random sequences carry forward. Export a backup from Settings before moving devices or clearing browser data.","include":true},
+    {"id":"C05","text":"[planned] More production skills and deeper trade.","include":false}
+  ],
+  "cta_text":"Play Idle Fantasy Shop: https://drevengames.itch.io/idle-fantasy-shop",
+  "confirmed":true
+}

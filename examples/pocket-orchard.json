@@ -1,0 +1,13 @@
+{
+  "product": {"name": "Pocket Orchard", "description": "A small notes app for personal notebooks."},
+  "audience": "People organizing their personal notes",
+  "release_label": "October update",
+  "changes": [
+    {"id": "C01", "text": "Search notes by title.", "include": true},
+    {"id": "C02", "text": "Export a notebook as Markdown.", "include": true},
+    {"id": "C03", "text": "Fixed a bug that could duplicate a note when saving.", "include": true},
+    {"id": "C04", "text": "[planned] Cloud sync across devices.", "include": false}
+  ],
+  "cta_text": "",
+  "confirmed": true
+}

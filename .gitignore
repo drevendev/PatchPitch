@@ -1,0 +1,16 @@
+.venv/
+.tools/
+artifacts/
+__pycache__/
+.pytest_cache/
+.env
+.env.*
+!.env.example
+*.log
+*.key
+*.pem
+playwright-report/
+test-results/
+# Owner keeps submission prose, handoff conversations and all media local.
+/submission/
+/handoff/
