@@ -1,0 +1,1 @@
+PatchPitch demo: Dreven. Real product recordings; local Kokoro-82M v1.0 af_heart narration (Apache-2.0 distribution); original procedural music. No voice cloning. Fonts: Manrope and Newsreader, SIL OFL 1.1; full licenses included. Demo case: Idle Fantasy Shop, Dreven Games. Source code: https://github.com/drevendev/PatchPitch (MIT).
