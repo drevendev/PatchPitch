@@ -14,7 +14,7 @@
     },
     {
       "id": "C02",
-      "text": "Biome pressure contributors: both the player and workers doing advanced Gathering. Pressure is shared within each biome and slows later cycles there. Pressure recovers automatically while no pressure-causing gathering jobs are running in that biome; there is no recovery action to start. Brushwood, ashwood and reed gathering add no pressure and do not block recovery. A cycle already running keeps its originally quoted duration. Biomes: forest, marsh, fields, riverbank.",
+      "text": "Advanced Gathering only: both the player and workers contribute biome pressure when performing advanced Gathering. Pressure is shared within each biome and slows later cycles there. Pressure recovers automatically while no pressure-causing gathering jobs are running in that biome; there is no recovery action to start. Brushwood, ashwood and reed gathering add no pressure and do not block recovery. A cycle already running keeps its originally quoted duration. Biomes: forest, marsh, fields, riverbank.",
       "include": true
     },
     {
@@ -39,7 +39,7 @@
     },
     {
       "id": "C07",
-      "text": "Import/Reset save replacement: pause play while storage writes the replacement. Unresolved replacement keeps play paused, with current-game export still available. Confirmed abort (storage confirms no replacement happened): continue the old game. Legacy recovery for conflicting main-database and local-mirror saves belonging to different playthroughs: all original copies can be downloaded before choosing which saved game to keep.",
+      "text": "Import and Reset replace saved-game data, not the save system. Pause play while storage writes the replacement saved-game data. Unresolved replacement keeps play paused, with current-game export still available. Confirmed abort (storage confirms no replacement happened): continue the old game. Legacy recovery for conflicting main-database and local-mirror saves belonging to different playthroughs: all original copies can be downloaded before choosing which saved game to keep.",
       "include": true
     },
     {

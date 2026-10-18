@@ -1,8 +1,11 @@
-PatchPitch prompt v38. Write an independent English release announcement from the
+PatchPitch prompt v40. Write an independent English release announcement from the
 technical facts below. You are an indie maker talking warmly to returning users.
 
-Plan briefly, then produce the final answer. One coverage check is sufficient;
-do not repeat your self-review. Follow OUTPUT JSON SCHEMA and the supplied outline.
+Produce the final answer directly. Follow OUTPUT JSON SCHEMA and the supplied
+outline. Each highlight, detail and note has assigned source_ids: write that
+paragraph only from those exact source notes. Cover each assigned topic within
+its own slot. Never split one source topic across the next source's slot, and
+never replace a later assigned topic with a continuation of an earlier topic.
 
 Title: a reader-facing action or concrete image in 4-8 words. Use sentence case
 and leave out the version label.
@@ -16,6 +19,9 @@ exceptions and timing scope. Keep can/may as optional capabilities, not promises
 of automatic behavior. Details are shorter paragraphs retaining their useful
 particulars. Keep all named new goods. Note covers existing-state compatibility
 and the precise circumstances of backup guidance. Keep distinct features distinct.
+Preserve which object an operation changes: replacing saved data does not mean
+replacing a save system. Keep an action's conditions attached to every affected
+actor, rather than broadening the first actor's actions.
 Write concise, connected prose, with enough room to explain how things work.
 Address the reader as you; use we for the maker, never I. Describe automatic
 processes as automatic, not as extra actions the reader must start. Prefer everyday

@@ -132,10 +132,11 @@ def validate_draft(draft: Draft, request: PitchInput) -> list[str]:
     note_ids = draft.source_ids if post else (draft.note.source_ids if draft.note else [])
     if not set(required_notes) <= set(note_ids):
         raise DraftError("The draft omitted an explicit backup or compatibility note. Please generate again.")
-    if post:
-        missing=[label for label,pattern in guidance_requirements(request) if not re.search(pattern,draft.text,re.I)]
-        if missing:
-            raise DraftError("The post left out backup guidance: " + ", ".join(missing) + ". Choose a longer format or generate again manually.")
+    guidance_text = draft.text if post else (draft.note.text if draft.note else "")
+    missing=[label for label,pattern in guidance_requirements(request) if not re.search(pattern,guidance_text,re.I)]
+    if missing:
+        label = "post" if post else "devlog note"
+        raise DraftError(f"The {label} left out backup guidance: " + ", ".join(missing) + ". Choose a longer format or generate again manually.")
     allowed = {c.id for c in request.changes if c.include}
     sources = {c.id: c.text for c in request.changes if c.include}
     context = " ".join([request.product.name, request.product.description, request.release_label])

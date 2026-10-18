@@ -116,7 +116,11 @@ def build_payload(request: PitchInput, prompt=None):
     outline=model_input(request)["outline"]
     def outlined_block(ids):
         block=copy.deepcopy(schema["$defs"]["Block"])
-        block["properties"]["source_ids"]={"type":"array","const":ids}
+        # Emit the assigned source before its prose. Direct generation otherwise
+        # can spend the next slot continuing the preceding topic.
+        properties=block["properties"]
+        block["properties"]={"source_ids":{"type":"array","const":ids},
+                             **{k:v for k,v in properties.items() if k!="source_ids"}}
         return block
     if outline["details"]:
         schema["properties"]["highlights"]["minItems"]=len(outline["highlights"])
@@ -156,7 +160,8 @@ def _payload(request, schema, prompt):
              "messages": [{"role": "user", "content": content}],
              "options": OPTIONS, "keep_alive": "10m"}
     if MODEL.startswith("gemma4"):
-        payload["think"]=request.format == "devlog"
+        # Reserve the token budget for the actual draft, including long devlogs.
+        payload["think"]=False
     return payload
 
 

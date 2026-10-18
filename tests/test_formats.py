@@ -166,3 +166,25 @@ def test_negative_source_does_not_authorize_parallel_execution(monkeypatch,input
     transport(monkeypatch,{"text":"Jobs run in parallel.","source_ids":["C01"],"hashtags":[]})
     with pytest.raises(generator.GenerationError,match="simultaneous work"):
         generator.generate(PitchInput.model_validate(input_data))
+
+
+def test_devlog_note_keeps_backup_circumstances(monkeypatch,input_data,draft_data):
+    input_data["changes"][1]["text"]="Export a backup from Settings before changing devices or clearing browser data."
+    draft_data["highlights"]=[block for block in draft_data["highlights"] if block["source_ids"]!=["C02"]]
+    draft_data["note"]={"text":"Export a backup before updating.","source_ids":["C02"]}
+    transport(monkeypatch,draft_data)
+    with pytest.raises(generator.GenerationError,match="devlog note left out backup guidance: Settings, changing or moving devices, clearing browser data"):
+        generator.generate(PitchInput.model_validate(input_data))
+    prose="Export a backup from Settings before changing devices or clearing browser data."
+    draft_data["note"]["text"]=prose
+    transport(monkeypatch,draft_data)
+    assert generator.generate(PitchInput.model_validate(input_data))["draft"]["note"]["text"]==prose
+
+
+def test_full_devlog_emits_assigned_source_before_prose(input_data):
+    payload=generator.build_payload(PitchInput.model_validate(input_data))
+    if generator.MODEL.startswith("gemma4"):
+        assert payload["think"] is False
+    for block in payload["format"]["properties"]["highlights"]["items"]:
+        assert next(iter(block["properties"]))=="source_ids"
+        assert "const" not in block["properties"]["text"]
