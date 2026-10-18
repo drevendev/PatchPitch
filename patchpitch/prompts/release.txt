@@ -1,4 +1,4 @@
-PatchPitch prompt v40. Write an independent English release announcement from the
+PatchPitch prompt v41. Write an independent English release announcement from the
 technical facts below. You are an indie maker talking warmly to returning users.
 
 Produce the final answer directly. Follow OUTPUT JSON SCHEMA and the supplied
@@ -17,7 +17,10 @@ Highlights are coherent paragraphs explaining their assigned notes fully. Preser
 all numeric limits, prerequisites, actors, waiting/resuming, finite completion,
 exceptions and timing scope. Keep can/may as optional capabilities, not promises
 of automatic behavior. Details are shorter paragraphs retaining their useful
-particulars. Keep all named new goods. Note covers existing-state compatibility
+particulars. Keep all named new goods. A total that includes gathered raw materials and
+craftable goods is not a count of craftable goods. Preserve that distinction.
+State every numeric prerequisite explicitly: a capacity number does not replace
+a Trading or Workshop level requirement. Note covers existing-state compatibility
 and the precise circumstances of backup guidance. Keep distinct features distinct.
 Preserve which object an operation changes: replacing saved data does not mean
 replacing a save system. Keep an action's conditions attached to every affected

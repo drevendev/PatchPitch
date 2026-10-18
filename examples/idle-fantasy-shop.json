@@ -19,7 +19,7 @@
     },
     {
       "id": "C03",
-      "text": "10 new items total. New raw materials: flax, beeswax, slate. Seven new craftable goods: linen thread, linen, slate marker, oak peg rack, waxed wrap, linen market bag, oak counter tray. Flax processing: flax -> linen thread -> linen. Separate Shelf Capacity V and VI purchases set EACH INDIVIDUAL shelf to a TOTAL capacity of 60 and 80 units respectively. Purchase requirements: Trading level 40 and 60 respectively, preceding capacity upgrade, material cost and Gold cost. Reaching a Trading level does not grant these upgrades automatically.",
+      "text": "New content counts: 3 gathered raw materials plus 7 craftable goods = 10 new items total. Only the seven goods are craftable. Gathered raw materials: flax, beeswax, slate. Seven new craftable goods: linen thread, linen, slate marker, oak peg rack, waxed wrap, linen market bag, oak counter tray. Flax processing: flax -> linen thread -> linen. Separate Shelf Capacity V and VI purchases set EACH INDIVIDUAL shelf to a TOTAL capacity of 60 and 80 units respectively. Purchase requirements: Trading level 40 and 60 respectively, preceding capacity upgrade, material cost and Gold cost. Reaching a Trading level does not grant these upgrades automatically.",
       "include": true
     },
     {
