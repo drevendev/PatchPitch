@@ -6,6 +6,13 @@ Turn selected changelog facts into an announcement people understand. Describe
 your product and audience, choose what shipped, generate with local Gemma, inspect
 the sources, edit and export Markdown. A small writing workflow with a human final edit.
 
+[Recorded demo](https://drevendev.github.io/PatchPitch/) ·
+[63-second video](https://drevendev.github.io/PatchPitch/assets/demo.mp4) ·
+[Build story on DEV](https://dev.to/drevendev/patchpitch-your-product-deserves-a-great-story-nao)
+
+The hosted demo shows real recorded Gemma outputs; generation runs locally using
+the setup below.
+
 ## Run locally
 
 Python 3.11+ and [Ollama](https://ollama.com/) are required. Tested on Windows 11
