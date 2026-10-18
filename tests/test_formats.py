@@ -150,6 +150,25 @@ def test_ordered_plan_capacity_and_negation_are_not_parallel_claims(monkeypatch,
     assert generator.generate(PitchInput.model_validate(input_data))["raw_draft"]==raw
 
 
+@pytest.mark.parametrize("prose", [
+    "Jobs can’t run simultaneously.",
+    "Jobs aren’t executed simultaneously.",
+    "Jobs can‘t run simultaneously.",
+    "Jobs aren‘t executed simultaneously.",
+])
+def test_typographic_negation_keeps_original_markdown(monkeypatch, input_data, prose):
+    input_data.update(format="community", cta_text="")
+    input_data["changes"][0]["text"] = "Execute ordered crafting jobs once."
+    raw = {"text": prose, "source_ids": ["C01"], "hashtags": []}
+    transport(monkeypatch, raw)
+
+    result = generator.generate(PitchInput.model_validate(input_data))
+
+    assert result["raw_draft"] == raw
+    assert result["markdown"] == prose + "\n"
+    assert result["automated_cleanup"] == []
+
+
 def test_full_devlog_accepts_queue_capacity_without_rewriting(monkeypatch,input_data,draft_data):
     input_data["changes"][0]["text"]="Queue three ordered crafting jobs; execute the list once."
     prose="You can queue three crafting jobs at once. The list executes in order and stops."
