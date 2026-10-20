@@ -84,3 +84,69 @@ class PostDraft(StrictModel):
 
 
 PITCH_SCHEMA = Draft.model_json_schema()
+
+
+class SourceReference(StrictModel):
+    api_id: Annotated[str, StringConstraints(pattern=r"^C[0-9]{2}$")]
+    stable_id: Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,39}$")]
+    source_url: Annotated[str, StringConstraints(max_length=500)] = ""
+    source_ref: Annotated[str, StringConstraints(max_length=600)] = ""
+
+    @model_validator(mode="after")
+    def safe_url(self):
+        from urllib.parse import urlsplit
+        if self.source_url:
+            parsed = urlsplit(self.source_url)
+            if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+                raise ValueError("Source URLs must be ordinary http(s) links without credentials.")
+        return self
+
+
+class SocialPost(StrictModel):
+    text: Annotated[str, StringConstraints(min_length=1, max_length=2200)]
+    source_ids: list[Annotated[str, StringConstraints(pattern=r"^C[0-9]{2}$")]] = Field(min_length=1, max_length=15)
+
+
+class ContextPost(SocialPost):
+    id: Annotated[str, StringConstraints(pattern=r"^P0[1-7]$")]
+
+
+class SocialDraft(StrictModel):
+    posts: list[SocialPost] = Field(min_length=1, max_length=7)
+
+
+class SocialInput(PitchInput):
+    format: Literal["x_single", "x_thread"] = "x_single"
+    auto_tags: Literal[False] = False
+    intent: Literal["show_result", "build_story", "release", "ask_question"] = "show_result"
+    post_count: int = Field(default=5, ge=3, le=7)
+    operation: Literal["generate", "regenerate"] = "generate"
+    target_post_id: Annotated[str, StringConstraints(pattern=r"^P0[1-7]$")] | None = None
+    thread_context: list[ContextPost] = Field(default_factory=list, max_length=7)
+    source_references: list[SourceReference] = Field(default_factory=list, max_length=15)
+    pack_id: Annotated[str, StringConstraints(max_length=80)] = ""
+    pack_version: Annotated[str, StringConstraints(max_length=40)] = ""
+    pack_sha256: Annotated[str, StringConstraints(pattern=r"^(?:[0-9a-f]{64})?$")] = ""
+
+    @model_validator(mode="after")
+    def check_social(self):
+        from .social_count import estimate
+        if self.cta_text and estimate(self.cta_text)["characters"] + 3 > 280:
+            raise ValueError("Shorten the call to action to leave room for the post.")
+        ids = [p.id for p in self.thread_context]
+        if len(ids) != len(set(ids)):
+            raise ValueError("Thread post IDs must be unique.")
+        if self.operation == "regenerate":
+            expected = self.post_count if self.format == "x_thread" else 1
+            if self.target_post_id not in ids or len(ids) != expected:
+                raise ValueError("Regeneration needs the selected post and the complete current thread.")
+            allowed = {c.id for c in self.changes if c.include}
+            if any(not set(p.source_ids) <= allowed for p in self.thread_context):
+                raise ValueError("Thread context cites an unknown or excluded fact.")
+        elif self.thread_context or self.target_post_id:
+            raise ValueError("Thread context is only used for an explicit single-post regeneration.")
+        refs = [r.api_id for r in self.source_references]
+        stable = [r.stable_id for r in self.source_references]
+        if refs and (refs != [c.id for c in self.changes] or len(stable) != len(set(stable))):
+            raise ValueError("Source references must map every change, in order, to a unique stable ID.")
+        return self

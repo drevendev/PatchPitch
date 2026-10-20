@@ -51,3 +51,14 @@ when using the application.
 The locally downloaded `gemma4:12b` distribution exposes the Apache License 2.0
 in its Ollama model metadata. Weights are not bundled with PatchPitch or covered
 by PatchPitch's MIT license. Model source: https://ollama.com/library/gemma4:12b .
+# X length reference (0.2.0)
+
+The original `x-estimate-v1` helpers use the published twitter-text v3 weight
+ranges and 23-character URL convention as reference data. They do not bundle
+twitter-text code or claim conformance. The official short URL cases are checked
+alongside original ASCII/Unicode/emoji/boundary fixtures; compound emoji and long
+URLs are deliberately estimated conservatively. Source, inspected 2026-10-20:
+https://github.com/twitter/twitter-text/blob/master/config/v3.json and
+https://github.com/twitter/twitter-text/blob/master/conformance/validate.yml .
+The upstream repository is Apache-2.0 licensed; its full implementation is not
+included. The app always requires checking the final text in X.

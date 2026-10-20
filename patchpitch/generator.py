@@ -7,6 +7,7 @@ import socket
 import time
 import urllib.error
 import urllib.request
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -34,6 +35,7 @@ class GenerationError(Exception):
     code: str
     message: str
     status: int = 502
+    evidence: dict | None = None
 
 
 def ollama_json(path: str, payload=None, timeout=5):
@@ -195,14 +197,37 @@ def _generate(request: PitchInput, observation):
     limit = FORMATS[request.format]["limit"]
     sources = {c.id: c.text for c in request.changes if c.include}
     used={source for _,block in blocks(draft) for source in block.source_ids}
+    returned = response_identity(raw)
+    if returned is None:
+        warnings.append("Ollama did not return a model identity; configured model is not verified response identity.")
+    elif returned != MODEL:
+        warnings.append("Returned model differs from the configured model. Review model identity before comparing results.")
     return {"draft": draft.model_dump(), "raw_draft":raw_draft,"automated_cleanup":[], "prose_assembly":"Model paragraphs formatted as Markdown; no words rewritten", "markdown": markdown(draft, request.cta_text), "body_markdown": markdown(draft, request.cta_text, include_tags=False), "warnings": warnings,
+            "context": {"product": request.product.name, "release_label": request.release_label, "generated_at": datetime.now(timezone.utc).isoformat()},
             "presentation":{"format":request.format,"format_label":FORMATS[request.format]["label"],"style":request.style,"style_label":STYLES[request.style]["label"],"auto_tags":request.auto_tags,"cta_text":request.cta_text,"characters":count,"limit":limit},
             "omitted_source_ids":sorted(set(sources)-used),
             "sources": sources, "source_map": [{"block": label, "source_ids": block.source_ids} for label, block in blocks(draft)],
-            "meta": {"mode": "LIVE_MODEL", "model": raw.get("model", MODEL), "elapsed_seconds": elapsed, "options": OPTIONS, "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
+            "meta": {"mode": "LIVE_MODEL", "model": returned, "configured_model": MODEL, "returned_model": returned, "elapsed_seconds": elapsed, "options": OPTIONS, "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest(),
                      "request_sha256":hashlib.sha256(json.dumps(payload,sort_keys=True,ensure_ascii=False).encode()).hexdigest(),
                      "thinking_enabled":payload.get("think",False),
-                     "prompt_eval_count": raw.get("prompt_eval_count"), "eval_count": raw.get("eval_count"), "total_duration_ns": raw.get("total_duration")}}
+                     **response_usage(raw)}}
+
+
+def response_identity(raw):
+    if not isinstance(raw, dict):
+        return None
+    value = raw.get("model")
+    return value if isinstance(value, str) and value.strip() else None
+
+
+def response_usage(raw):
+    result = {}
+    if not isinstance(raw, dict):
+        return result
+    for key, target in [("prompt_eval_count", "prompt_eval_count"), ("eval_count", "eval_count"), ("total_duration", "total_duration_ns")]:
+        if type(raw.get(key)) is int and raw[key] >= 0:
+            result[target] = raw[key]
+    return result
 
 
 def validate_response(raw, request, payload):

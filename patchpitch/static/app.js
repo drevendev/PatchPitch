@@ -3,9 +3,11 @@ const $ = id => document.getElementById(id);
 let changes = [], previewText = null, previewTimer, result = null, currentMarkdown = "", edited = false, busy = false;
 const drafts = new Map();
 let currentTags = [];
-const formatNames = {devlog:"Devlog",community:"Community post",short:"Short post"};
-const formatHints = {devlog:"The full story, with every selected topic.",community:"A few useful changes, in a post for your community.",short:"One useful thought. 280 characters including your CTA and tags."};
-$("format").addEventListener("change", () => {$("format-hint").textContent=formatHints[$("format").value];$("tag-count-hint").textContent=$("format").value==="short" ? "up to 1" : "up to 3";});
+let packContext = null, socialPosts = [], unloadProtected = false;
+const isSocial = format => ["x_single","x_thread"].includes(format);
+const formatNames = {devlog:"Devlog",community:"Community post",short:"Short post",x_single:"X Single",x_thread:"X Thread"};
+const formatHints = {devlog:"The full story, with every selected topic.",community:"A few useful changes, in a post for your community.",short:"One useful thought. 280 characters including your CTA and tags.",x_single:"One concrete thought. Edit, check sources and verify in X.",x_thread:"A connected story. Each card stays independently editable."};
+$("format").addEventListener("change", () => {const social=isSocial($("format").value);$("format-hint").textContent=formatHints[$("format").value];$("tag-count-hint").textContent=social?"off for X":$("format").value==="short" ? "up to 1" : "up to 3";$("social-options").hidden=!social;$("post-count-row").hidden=$("format").value!=="x_thread";$("auto-tags").disabled=social;});
 // Animate disclosures in normal document flow, including rapid reversals.
 // No captured image or text layer is scaled during a transition.
 const disclosureAnimations = new WeakMap();
@@ -96,13 +98,15 @@ function applyPrepared(text, data) {
     const original=document.createElement("details");original.className="change-original";
     const summary=document.createElement("summary");summary.textContent="Read original note";
     const text=document.createElement("p");text.textContent=change.text;original.append(summary,text);
+    const ref=packContext?.source_references?.find(r=>r.api_id===change.id);
+    if(ref){const source=document.createElement("p");source.textContent=`${ref.stable_id} · ${ref.source_ref}`;original.append(source);if(ref.source_url){const a=document.createElement("a");a.href=ref.source_url;a.textContent="Inspect source ↗";a.target="_blank";a.rel="noopener noreferrer";original.append(a);}}
     row.append(top,original);
     if (change.reason) {const reason=document.createElement("p");reason.className="reason";reason.textContent=change.reason+" · excluded by default";row.append(reason);}
     $("change-preview").append(row);
   }
   selectionCount();
 }
-$("changes").addEventListener("input", () => {clearTimeout(previewTimer); $("confirmed").checked = false; previewTimer = setTimeout(() => prepare().catch(e => error(e.message)), 250);});
+$("changes").addEventListener("input", () => {clearTimeout(previewTimer);packContext=null;$("pack-status").textContent="Manually edited notes. Review provenance and confirm the new selection."; $("confirmed").checked = false; previewTimer = setTimeout(() => prepare().catch(e => error(e.message)), 250);});
 $("example").addEventListener("click", async () => {
   if (busy) return;
   if (edited && !confirm("Replace the input with the illustrative example? Your current draft will stay visible.")) return;
@@ -115,6 +119,7 @@ $("example").addEventListener("click", async () => {
     // Reserve loading through preparation, then replace the input atomically.
     // A failed fetch/prepare leaves the current form and draft untouched.
     const prepared=await jsonRequest("/api/prepare", {text:fields.changes});
+    packContext=null;
     for(const [id,value] of Object.entries(fields)) $(id).value=value;
     applyPrepared(fields.changes, prepared);
     $("example-label").textContent=`Code-patch input · ${data.product.name} ${data.release_label} · review the selected facts before generating.`;
@@ -128,11 +133,20 @@ function setBusy(value) {
   $("pitch-form").setAttribute("aria-busy", String(value));
   for (const control of $("pitch-form").querySelectorAll("input,textarea,select")) control.disabled = value;
   for (const control of document.querySelectorAll("#edit,#editor,#tag-chips button,#saved-drafts button")) control.disabled=value;
+  for (const control of document.querySelectorAll("#load-pack,#fact-pack,#pack-file,#social-posts button,#social-posts textarea,#social-posts input")) control.disabled=value || control.dataset.boundaryDisabled==="true";
+  if(!value && isSocial($("format").value)) $("auto-tags").disabled=true;
 }
 $("generate").addEventListener("click",()=>{closeDisclosure($("selection-panel"));});
 function saveCurrent() {
-  if (result) drafts.set(result.presentation?.format || "devlog", {data:result,markdown:currentMarkdown,tags:[...currentTags],edited,editing:!$("editor").hidden});
+  if (result) {
+    result.context ||= {product:$("product").value,release_label:$("release").value,generated_at:new Date().toISOString()};
+    drafts.set(contextKey(result.presentation?.format || "devlog",result.context), {data:result,markdown:currentMarkdown,tags:[...currentTags],edited,editing:!$("editor").hidden,posts:structuredClone(socialPosts)});
+    $("storage-hint").hidden=false;
+    if(!unloadProtected){window.addEventListener("beforeunload",warnUnload);unloadProtected=true;}
+  }
 }
+function warnUnload(event){if(!drafts.size)return;event.preventDefault();event.returnValue=true;}
+function contextKey(format,context={product:$("product").value,release_label:$("release").value}){return JSON.stringify([context.product,context.release_label,format]);}
 function characterCount() {
   const limit=result?.presentation?.limit;
   $("character-count").hidden=!limit;
@@ -154,11 +168,13 @@ function showTagChips() {
   }
 }
 function render(data, saved=null) {
+  if(isSocial(data.presentation?.format)){renderSocial(data,saved);return;}
   result = data; currentMarkdown = saved?.markdown ?? data.markdown; edited = saved?.edited ?? false;
+  socialPosts=[];$("social-posts").hidden=true;$("edit").hidden=false;$("copy").textContent="Copy Markdown";$("download").textContent="Download Markdown ↓";
   currentTags=[...(saved?.tags ?? data.draft.hashtags ?? [])];
   $("empty-state").hidden = true; $("result").hidden = false; $("result-tools").hidden = false;
   $("editor").hidden = true; $("editor-label").hidden = true; $("draft-view").hidden = false; $("edited-label").hidden = true; $("edit").textContent = "Edit draft";
-  $("timing").textContent = `${data.meta.model} · ${data.meta.elapsed_seconds.toFixed(1)}s · generated locally`;
+  $("timing").textContent = `${data.meta.returned_model ?? data.meta.model ?? "Model identity unknown"} · ${data.meta.elapsed_seconds.toFixed(1)}s · generated locally`;
   $("output-preset").textContent=data.presentation ? `${data.presentation.format_label} / ${data.presentation.style_label}` : "";
   $("draft-view").replaceChildren();
   if(data.presentation && data.presentation.format!=="devlog") {
@@ -205,11 +221,7 @@ function render(data, saved=null) {
   }
   if(saved?.editing) openEditor();
   $("edited-label").hidden=!edited;showTagChips();characterCount();saveCurrent();
-  $("saved-drafts").replaceChildren();$("saved-drafts").hidden=drafts.size<2;
-  for(const [format,state] of drafts) {
-    const button=document.createElement("button");button.type="button";button.textContent=formatNames[format];button.disabled=busy;button.setAttribute("aria-pressed",String(format===(data.presentation?.format||"devlog")));
-    button.addEventListener("click",()=>{if(busy)return;saveCurrent();const latest=drafts.get(format);render(latest.data,latest);});$("saved-drafts").append(button);
-  }
+  renderSavedButtons();
 }
 $("pitch-form").addEventListener("submit", async event => {
   event.preventDefault(); if (busy) return;
@@ -218,11 +230,13 @@ $("pitch-form").addEventListener("submit", async event => {
     await prepare();
     if (!$("confirmed").checked) throw new Error("Review the selected changes and confirm they belong in this announcement.");
     saveCurrent();
-    if (drafts.get($("format").value)?.edited && !confirm("Generate a new draft and replace your edited text? Copy or download it first if you want to keep it.")) return;
+    if (drafts.get(contextKey($("format").value))?.edited && !confirm("Generate a new draft and replace your edited text? Copy or download it first if you want to keep it.")) return;
     const body = {product:{name:$("product").value,description:$("description").value},audience:$("audience").value,release_label:$("release").value,voice_reference:$("voice").value,changes:changes.map(({id,text,include}) => ({id,text,include})),cta_text:$("cta").value,format:$("format").value,style:$("style").value,auto_tags:$("auto-tags").checked,confirmed:true};
+    const social=isSocial(body.format);
+    if(social){Object.assign(body,{auto_tags:false,intent:$("intent").value,post_count:Number($("post-count").value)});if(packContext)for(const k of ["source_references","pack_id","pack_version","pack_sha256"])body[k]=packContext[k];}
     setBusy(true); const start = performance.now(); $("status").textContent="Writing with local Gemma… 0.0s";
     const timer = setInterval(() => $("status").textContent=`Writing with local Gemma… ${((performance.now()-start)/1000).toFixed(1)}s`, 200);
-    try {const data = await jsonRequest("/api/pitch",body);render(data);$("status").textContent="Your draft is ready to review. Nothing has been published.";}
+    try {const data = await jsonRequest(social?"/api/social":"/api/pitch",body);data.media_note=$("media-note").value;render(data);$("status").textContent="Your draft is ready to review. Nothing has been published.";}
     finally {clearInterval(timer);}
   } catch (e) {error(e.message);$("status").textContent="Your input and any previous draft are still here.";}
   finally {setBusy(false);}
@@ -234,6 +248,6 @@ function openEditor() {
 }
 $("edit").addEventListener("click",openEditor);
 $("editor").addEventListener("input", () => {if(busy)return;currentMarkdown=$("editor").value;edited=true;characterCount();saveCurrent();});
-$("copy").addEventListener("click", async () => {try {await navigator.clipboard.writeText(currentMarkdown);$("status").textContent="Markdown copied. Ready for your final review.";} catch {error("Clipboard unavailable. Use Download Markdown or copy from Edit draft.");}});
-$("download").addEventListener("click", () => {const url=URL.createObjectURL(new Blob([currentMarkdown],{type:"text/markdown;charset=utf-8"}));const link=document.createElement("a");link.href=url;link.download="patchpitch-announcement.md";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);$("status").textContent="Markdown downloaded. Nothing has been published.";});
+$("copy").addEventListener("click", () => copyText(isSocial(result?.presentation?.format)?socialPlain():currentMarkdown));
+$("download").addEventListener("click", () => {const url=URL.createObjectURL(new Blob([currentMarkdown],{type:"text/markdown;charset=utf-8"}));const link=document.createElement("a");link.href=url;link.download=exportName(result);link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);$("status").textContent="Markdown downloaded. Nothing has been published.";});
 fetch("/api/health").then(r=>r.json()).then(data => {$("model-status").textContent=data.ollama==="ready" ? `${data.model} · local` : "Ollama needs attention · local";}).catch(()=>{$("model-status").textContent="Local connection unavailable";});

@@ -30,4 +30,7 @@ its prose is not model input. PatchPitch receives prepared notes: it does not sh
 a Git importer or perform an independent source-code audit. The game implementation
 is not copied or bundled into PatchPitch.
 Optional narration uses Kokoro-82M v1.0 (Apache-2.0), via kokoro-onnx (MIT).
-Weights/voices and generated audio are not bundled in the source repository.
+Weights and voice packages are downloaded separately and are not bundled in this
+repository. The previously approved narrated demo is published under `public-demo/`;
+private capture sessions and local evaluation evidence remain excluded. The new
+0.2.0 candidate and its evidence have not been published.
