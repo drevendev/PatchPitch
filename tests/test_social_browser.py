@@ -15,6 +15,8 @@ def result_for(body, monkeypatch):
     raw={"posts":[{"text":f"PatchPitch keeps selected facts available for review. Draft {i+1}.","source_ids":["C03"]} for i in range(count)]}
     if body["product"]["name"]=="Idle Fantasy Shop":
         raw={"posts":[{"text":"Idle Fantasy Shop opens the Batch Board at Workshop level 10.","source_ids":["C01"]}]}
+        if any(c["id"]=="C08" and c["include"] for c in body["changes"]):
+            raw={"posts":[{"text":"Idle Fantasy Shop: Batch Board needs Workshop 10. Export a backup from Settings before changing devices or clearing browser data.","source_ids":["C01","C08"]}]}
     monkeypatch.setattr(generator,"ollama_json",lambda *a,**kw:{"done":True,"model":"MOCK","message":{"content":json.dumps(raw)}})
     return social.generate(SocialInput.model_validate(body))
 
@@ -145,4 +147,25 @@ def test_import_failure_and_clipboard_denial_preserve_text(ui_url,monkeypatch):
         expect(page.locator("#text-P01")).to_have_value("My current text.")
         names=page.evaluate("()=>['CON','a/b:c','Игра 😀','...'].map(product=>exportName({context:{product,release_label:'0.2',generated_at:'2026-10-20T12:00:00Z'},presentation:{format:'x_single'}}))")
         assert len(set(names))==4 and all('/' not in n and ':' not in n for n in names)
+        browser.close()
+
+
+def test_pilot_all_three_cases_under_real_app_csp(ui_url,tmp_path,monkeypatch):
+    from types import SimpleNamespace
+    from scripts import social_pilot as pilot
+    monkeypatch.setattr(pilot,"ROOT",tmp_path)
+    monkeypatch.setattr(pilot,"source_identity",lambda:{"head_sha":"MOCK","worktree_dirty":False})
+    monkeypatch.setattr(pilot,"source_hash",lambda:"MOCK")
+    health={"ollama":"ready","model":"MOCK","digest":"MOCK","runtime_source_sha256":"MOCK","options":{},"sentry_enabled":False}
+    with sync_playwright() as p:
+        browser=p.chromium.launch();page=open_page(browser,ui_url)
+        page.on("dialog",lambda d:d.accept())
+        page.route("**/api/social",lambda r:r.fulfill(json=result_for(r.request.post_data_json,monkeypatch)))
+        class PilotPage:
+            request=SimpleNamespace(get=lambda url:SimpleNamespace(json=lambda:health))
+            def __getattr__(self,name):return getattr(page,name)
+        for name in pilot.CASES:
+            result=pilot.run_case(PilotPage(),ui_url,name,tmp_path)
+            assert result["result"]=="PASS_ENGINEERING_REVIEW_PENDING",result
+        assert len(list(tmp_path.rglob("raw-response.json")))==3
         browser.close()
