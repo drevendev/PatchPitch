@@ -142,6 +142,8 @@ def test_backup_circumstances_cannot_disappear_from_thread(monkeypatch,social_in
     mock_transport(monkeypatch,raw)
     with pytest.raises(generator.GenerationError,match="clearing browser data"):
         social.generate(SocialInput.model_validate(social_input))
+    prompt=social.build_payload(SocialInput.model_validate(social_input))["messages"][0]["content"]
+    assert "EVERY listed circumstance" in prompt and "ALL this guidance belongs in that one post" in prompt
 
 
 @pytest.mark.parametrize("text,expected", [("a"*279,279),("a"*280,280),("a"*281,281),("Привет",6),("漢字",4),("e\u0301",1),("😀",2),("Hi http://test.co",26),("http://test.co",23),("👨‍👩‍👧‍👦",11)])

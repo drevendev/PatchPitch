@@ -49,7 +49,13 @@ def build_payload(request: SocialInput):
         + "Use fewer words; keep a complete useful thought. Write the story as prose, not a checklist.")
     guidance = guidance_requirements(request)
     if guidance:
-        instructions += "\nMandatory guidance somewhere in the whole thread: " + ", ".join(label for label, _ in guidance) + "."
+        instructions += ("\nMANDATORY CONTENT: " + ", ".join(label for label, _ in guidance)
+            + ". EVERY listed circumstance must survive, together in one post citing its source. "
+            "Mention BOTH device changes AND clearing browser data when both appear in the source; "
+            "do not shorten this to only one trigger. Preserve the source's or/and relationship. "
+            "For a single post, ALL this guidance belongs in that one post. Allocate space for it first "
+            "when planning, then one short useful change sentence. Omit the version label and secondary "
+            "feature counts if needed; never omit backup location or circumstances.")
     data = {"product": request.product.model_dump(), "audience": request.audience, "release_label": request.release_label,
             "voice_reference": request.voice_reference,
             "selected_changes": [{"id": c.id, "text": c.text} for c in request.changes if c.include]}
