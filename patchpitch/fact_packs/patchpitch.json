@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "id": "patchpitch",
+  "version": "public-workflow-v1",
+  "product": {
+    "name": "PatchPitch",
+    "description": "A local writing studio turning selected release facts into editable announcements with source notes."
+  },
+  "audience": "Indie developers and open-source maintainers who write about their own projects",
+  "release_label": "Public workflow",
+  "voice_reference": "Editorial brief for owner review, not an author quotation: calm, concise, mildly personal. Explain a concrete engineering choice and its limits. No hype, invented metrics, forced emojis or generic AI marketing.",
+  "cta_text": "https://github.com/drevendev/PatchPitch",
+  "facts": [
+    {
+      "id": "F01",
+      "text": "PatchPitch is a local release-writing tool for indie developers and open-source maintainers. It uses Gemma through local Ollama.",
+      "include": true,
+      "kind": "released",
+      "source_url": "https://github.com/drevendev/PatchPitch/blob/55daab14470feaf489fc763a5c1e26fb078f1e37/README.md",
+      "source_ref": "main 55daab14470feaf489fc763a5c1e26fb078f1e37; review this fact before use"
+    },
+    {
+      "id": "F02",
+      "text": "The author selects which change notes to include before generation. Excluded notes never enter the model payload.",
+      "include": true,
+      "kind": "released",
+      "source_url": "https://github.com/drevendev/PatchPitch/blob/55daab14470feaf489fc763a5c1e26fb078f1e37/patchpitch/generator.py",
+      "source_ref": "main 55daab14470feaf489fc763a5c1e26fb078f1e37; review this fact before use"
+    },
+    {
+      "id": "F03",
+      "text": "The author can inspect the cited original notes, edit the generated text, copy Markdown and download Markdown.",
+      "include": true,
+      "kind": "released",
+      "source_url": "https://github.com/drevendev/PatchPitch/blob/55daab14470feaf489fc763a5c1e26fb078f1e37/README.md",
+      "source_ref": "main 55daab14470feaf489fc763a5c1e26fb078f1e37; review this fact before use"
+    },
+    {
+      "id": "F04",
+      "text": "Source IDs aid inspection but do not prove that every sentence is factually correct. Human review is required.",
+      "include": true,
+      "kind": "released",
+      "source_url": "https://github.com/drevendev/PatchPitch/blob/55daab14470feaf489fc763a5c1e26fb078f1e37/README.md",
+      "source_ref": "main 55daab14470feaf489fc763a5c1e26fb078f1e37; review this fact before use"
+    },
+    {
+      "id": "F05",
+      "text": "The public GitHub Pages page shows a recorded product demo. It does not run live inference for visitors.",
+      "include": true,
+      "kind": "released",
+      "source_url": "https://github.com/drevendev/PatchPitch/blob/55daab14470feaf489fc763a5c1e26fb078f1e37/public-demo/index.html",
+      "source_ref": "main 55daab14470feaf489fc763a5c1e26fb078f1e37; review this fact before use"
+    },
+    {
+      "id": "F06",
+      "text": "A delayed example load could overwrite input during generation. Reserving the example-loading operation through preparation fixed this race; regression tests cover success and failure.",
+      "include": true,
+      "kind": "released",
+      "source_url": "https://github.com/drevendev/PatchPitch/blob/55daab14470feaf489fc763a5c1e26fb078f1e37/tests/test_browser.py",
+      "source_ref": "main 55daab14470feaf489fc763a5c1e26fb078f1e37; review this fact before use"
+    },
+    {
+      "id": "F07",
+      "text": "Backup guidance validation was extended to the full devlog note. Citing the source alone is insufficient: Settings, device changes and clearing browser data must retain their actual circumstances. These are targeted checks, not semantic verification.",
+      "include": true,
+      "kind": "released",
+      "source_url": "https://github.com/drevendev/PatchPitch/blob/55daab14470feaf489fc763a5c1e26fb078f1e37/tests/test_formats.py",
+      "source_ref": "main 55daab14470feaf489fc763a5c1e26fb078f1e37; review this fact before use"
+    },
+    {
+      "id": "F08",
+      "text": "The code is MIT licensed and the Python application uses FastAPI and vanilla JavaScript.",
+      "include": true,
+      "kind": "released",
+      "source_url": "https://github.com/drevendev/PatchPitch/blob/55daab14470feaf489fc763a5c1e26fb078f1e37/LICENSE",
+      "source_ref": "main 55daab14470feaf489fc763a5c1e26fb078f1e37; review this fact before use"
+    },
+    {
+      "id": "F09",
+      "text": "[planned] Automatic Git import, direct social publishing and a hosted live writing service.",
+      "include": false,
+      "kind": "planned",
+      "source_url": "https://github.com/drevendev/PatchPitch/blob/55daab14470feaf489fc763a5c1e26fb078f1e37/README.md",
+      "source_ref": "main 55daab14470feaf489fc763a5c1e26fb078f1e37; review this fact before use"
+    }
+  ]
+}

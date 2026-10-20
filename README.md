@@ -15,6 +15,72 @@ the setup below.
 
 ## Run locally
 
+### 0.2.0 review candidate: Social Field Test
+
+This candidate adds **X Single** and **X Thread** (3–7 posts, default five).
+Load **Reviewed fact packs**, inspect their provenance, confirm the selected
+facts and voice brief, then choose the X format and writing goal. Built-in inputs
+cover PatchPitch's existing public workflow and the historical Idle Fantasy Shop
+0.12 patch. Neither fixture establishes that a new version shipped today.
+You can import a versioned fact-pack JSON using the same schema as
+`patchpitch/fact_packs/patchpitch.json`; loading it never runs inference.
+
+Each generated card has an editable plain-text post, source IDs, a length estimate,
+Copy and an optional media note. Move cards up/down or explicitly regenerate one;
+other cards and their edits are retained. The generated source snapshot stays
+attached to its product/release, even after changing the input. Manual edits to
+the raw input clear its pack provenance; review that new selection again.
+Existing devlog/community/short formats continue to work.
+
+X lengths use **x-estimate-v1**, a conservative estimate based on NFC, v3 character
+weight ranges and a URL reserve. Emoji sequences can be overcounted and long URLs
+keep their raw weight. This is **not twitter-text conformance or an X API validator**:
+verify every final post in X. Overflow is reported without truncation or retries.
+The generated exact CTA appears only on the final card; moving/editing cards
+leaves the author's text intact. Single-card regeneration retains that card's
+exact original CTA only if it is still present there. Media notes stay outside
+per-post clipboard text and appear separately in the whole-thread Markdown.
+
+Drafts for different products/releases/formats stay in this tab's memory.
+A close/refresh warning is best effort; it does not save or restore a session.
+Copy plain text or download recognizable UTF-8 Markdown files before leaving.
+Nothing is posted to X and there are no platform credentials or cloud fallbacks.
+
+The project author accepted the three edited pilot texts and the application.
+The real X composer check was explicitly deferred; it has not passed.
+See the [review record and release gates](docs/0.2.0-review.md). Preparing the PR
+and running its CI do not create a Release or deploy the staged Pages update.
+
+From the root of an already prepared Windows checkout:
+
+```powershell
+$env:PATCHPITCH_MODEL = 'gemma4:12b'
+$env:PATCHPITCH_SENTRY_DSN = ''
+.\scripts\start_local.ps1
+```
+
+Open **http://127.0.0.1:8000**. Keep this PowerShell process running; Ctrl+C stops
+the app. The launcher can start the existing workspace Ollama if it is not already
+running. No download happens in this startup path. For a clean checkout, install
+Python 3.12 and Ollama, then follow the environment/model setup below first.
+
+For explicit live evidence, with the app and model running:
+
+```powershell
+.\.venv\Scripts\python.exe scripts/social_pilot.py --live --case all
+```
+
+This performs one real request per case, checks clipboard/download, and retains
+each attempt under ignored `artifacts/release-0.2.0/<head-sha>/`. Records distinguish
+dirty source-tree hashes, configured and returned model identity, observed
+health/tags digest, raw response, final text and failures. Missing identity is
+unknown, not inferred. A health digest is not an inference-returned digest.
+Rejected model output is retained as local error evidence. New pilot captures
+start with owner acceptance and X preview marked `NOT_RUN`; later owner decisions
+are recorded separately instead of rewriting the original capture.
+Use `--interactive-review` to pause after each real response for explicit operator
+edits before clipboard/download verification; this still does not imply owner approval.
+
 Python 3.11+ and [Ollama](https://ollama.com/) are required. Tested on Windows 11
 with Python 3.12.14 and Ollama 0.40.6. The source is [MIT licensed](LICENSE).
 
@@ -223,13 +289,19 @@ FFmpeg and ffprobe must be on PATH, or under `.tools/ffmpeg/**/bin/` on Windows.
   music, fixed UI framing, quiet editorial accents and soft scene transitions are optional demo tooling. The older Windows voice is an explicit
 fallback. No paid voice API, music or voice cloning is used.
 
-The article, videos, handoff and local evidence stay excluded from Git. Publishing
-source code does not publish those materials. This repository contains implementation,
-examples, tests and reproduction scripts. See [REUSE.md](REUSE.md) and
+Private handoff files and local evaluation evidence stay excluded from Git.
+The previously approved article, demo video and supporting assets are intentionally
+published from `public-demo/`. This repository also contains implementation,
+examples, tests and reproduction scripts. The 0.2.0 source candidate includes
+approved edited examples staged for a future Pages update. Full raw evidence
+remains private; Release, Pages deployment, X and DEV publication are separate
+owner decisions. See [REUSE.md](REUSE.md) and
 [third-party notices](THIRD_PARTY_NOTICES.md) for provenance.
 
 This new project began 2026-10-18. Any source changes after the challenge cutoff
-(2026-10-19 09:59 Asia/Nicosia) must be disclosed here; none are currently recorded.
+(2026-10-19 09:59 Asia/Nicosia) must be disclosed here. The 0.2.0 Social Field Test
+implementation, tests, fact packs and publication/provenance documentation changes
+were prepared on 2026-10-20 after that cutoff; they are not part of the contest build.
 
 
 The current studio uses smooth, reversible disclosures and expandable previews for

@@ -13,10 +13,13 @@ from starlette.concurrency import run_in_threadpool
 from . import __version__
 from . import generator
 from . import telemetry
-from .models import PitchInput, PrepareInput
+from .models import PitchInput, PrepareInput, SocialInput
+from . import social, fact_packs
 from .validation import prepare_lines
+from .build import source_hash
 
 STATIC = Path(__file__).parent / "static"
+RUNTIME_SOURCE_SHA256 = source_hash()
 
 
 @asynccontextmanager
@@ -69,11 +72,11 @@ def health():
         version = generator.ollama_json("/api/version")
         tags = generator.ollama_json("/api/tags")
         model = next((m for m in tags.get("models", []) if m.get("name") == generator.MODEL), None)
-        return {"app": __version__, "mode": "LOCAL", "sentry_enabled": telemetry.enabled(), "ollama": "ready" if model else "model_missing", "ollama_version": version.get("version"), "model": generator.MODEL, "digest": model.get("digest") if model else None,
+        return {"app": __version__, "runtime_source_sha256": RUNTIME_SOURCE_SHA256, "mode": "LOCAL", "sentry_enabled": telemetry.enabled(), "ollama": "ready" if model else "model_missing", "ollama_version": version.get("version"), "model": generator.MODEL, "digest": model.get("digest") if model else None,
                 "options": generator.OPTIONS, "prompt_sha256": hashlib.sha256(generator.read_prompt().encode()).hexdigest(),
                 "prompt_hashes": {fmt:hashlib.sha256(generator.read_prompt(fmt).encode()).hexdigest() for fmt in ("devlog","community","short")}}
     except generator.GenerationError as exc:
-        return {"app": __version__, "mode": "LOCAL", "sentry_enabled": telemetry.enabled(), "ollama": exc.code, "model": generator.MODEL, "options": generator.OPTIONS, "message": exc.message}
+        return {"app": __version__, "runtime_source_sha256": RUNTIME_SOURCE_SHA256, "mode": "LOCAL", "sentry_enabled": telemetry.enabled(), "ollama": exc.code, "model": generator.MODEL, "options": generator.OPTIONS, "message": exc.message}
 
 
 @app.post("/api/prepare")
@@ -86,11 +89,36 @@ def prepare(request: PrepareInput):
 
 @app.post("/api/pitch")
 async def pitch(request: PitchInput):
+    return await run_generation(request, generator.generate)
+
+
+@app.post("/api/social")
+async def social_pitch(request: SocialInput):
+    return await run_generation(request, social.generate)
+
+
+@app.get("/api/fact-packs/{pack_id}")
+def builtin_pack(pack_id: str):
+    try:
+        return fact_packs.prepare_pack(fact_packs.load_pack(pack_id))
+    except KeyError:
+        raise HTTPException(404, "Unknown built-in fact pack.")
+
+
+@app.post("/api/fact-packs/prepare")
+def import_pack(request: fact_packs.FactPack):
+    return fact_packs.prepare_pack(request)
+
+
+async def run_generation(request, generate):
     if not generation_lock.acquire(blocking=False):
         return JSONResponse({"error": {"code": "busy", "message": "A draft is already being generated. Please wait."}}, status_code=409)
     try:
-        return await run_in_threadpool(generator.generate, request)
+        return await run_in_threadpool(generate, request)
     except generator.GenerationError as exc:
-        return JSONResponse({"error": {"code": exc.code, "message": exc.message}}, status_code=exc.status)
+        body = {"error": {"code": exc.code, "message": exc.message}}
+        if exc.evidence is not None:
+            body["evidence"] = exc.evidence
+        return JSONResponse(body, status_code=exc.status)
     finally:
         generation_lock.release()

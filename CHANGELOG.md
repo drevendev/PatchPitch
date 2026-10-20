@@ -1,5 +1,30 @@
 # PatchPitch local development log
 
+## 2026-10-20 — 0.2.0 Social Field Test candidate (PR review)
+
+- Added versioned PatchPitch/Idle Fantasy Shop fact packs, strict JSON import,
+  source provenance mapping and explicit selection confirmation (#30).
+- Added X Single and 3–7-card X Thread, writing goals, source inspection,
+  edits, reordering and explicit single-card regeneration (#35).
+- Preserved drafts across products/releases/formats; protected other card edits
+  on failure and retained raw rejected responses as local diagnostic evidence.
+- Added shared conservative X length estimates, explicit X-preview requirement,
+  per-post plaintext Copy and exact current-thread Markdown downloads.
+- Distinguished configured/returned model identity and missing usage (#41).
+- Added best-effort unload warnings (#42) and safe contextual filenames (#43).
+- Corrected approved-public/private media provenance and disclosed this work as
+  post-challenge development (#28). Existing published assets are unchanged.
+- Added offline API/browser/privacy regressions and an opt-in three-case real
+  browser/Gemma pilot. Owner acceptance and publication remain separate gates.
+- Recorded owner acceptance of the three edited texts and the application;
+  real X composer preview is deferred by the owner and has not passed.
+- Staged a version-labelled Pages example page for review, preserving the
+  accepted historical article and recording. Deployment remains manual.
+
+The owner authorized PR preparation and exact-head CI. No merge, GitHub Release/tag,
+Pages deployment or social publication is included. Full sessions (#11), feedback (#36/#37),
+Git import and a hosted live model remain later work.
+
 ## 2026-10-19 — formats, styles and auto tags
 
 - Added devlog, community and 280-character short-post formats with Warm, Clear

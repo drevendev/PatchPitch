@@ -107,6 +107,26 @@ def test_missing_identity_or_usage_never_becomes_configured_identity_or_zero(mon
     else:assert not any(k.startswith("gen_ai.usage") for k in model)
 
 
+@pytest.mark.parametrize("format",["x_single","x_thread"])
+def test_social_traces_never_include_facts_drafts_or_provenance(monkeypatch,format):
+    from patchpitch import social
+    from patchpitch.fact_packs import prepare_pack,load_pack
+    from patchpitch.models import SocialInput
+    enable()
+    pack=prepare_pack(load_pack("patchpitch"));pack.pop("review_required")
+    pack["changes"]=[{k:c[k] for k in ("id","text","include")} for c in pack["changes"]]
+    pack.update(format=format,confirmed=True)
+    n=5 if format=="x_thread" else 1
+    raw={"done":True,"model":"returned-model:1","message":{"content":json.dumps({"posts":[{"text":"A private generated paragraph for review.","source_ids":["C03"]} for _ in range(n)]})}}
+    monkeypatch.setattr(generator,"ollama_json",lambda *a,**kw:raw)
+    social.generate(SocialInput.model_validate(pack))
+    serialized=json.dumps(events())
+    assert events()[0]["tags"]["patchpitch.format"]==format
+    assert "private generated paragraph" not in serialized
+    assert "source_references" not in serialized and "source_url" not in serialized
+    assert "selected_changes" not in serialized and "Public workflow" not in serialized
+
+
 def test_controlled_validation_failure_has_linked_error_and_no_fake_inference(input_data,draft_data):
     enable();request=PitchInput.model_validate(input_data)
     draft_data["intro"]["text"]="TODO private fixture."

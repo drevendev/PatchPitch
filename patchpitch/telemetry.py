@@ -15,7 +15,7 @@ from . import __version__
 ERROR_CODES = frozenset({"invalid_draft", "incomplete_response", "format_overflow",
     "ollama_unavailable", "timeout", "ollama_error", "model_missing", "invalid_json",
     "invalid_response", "unexpected_error"})
-FORMATS = frozenset({"devlog", "community", "short"})
+FORMATS = frozenset({"devlog", "community", "short", "x_single", "x_thread"})
 SCENARIOS = frozenset({"LIVE_MODEL", "CONTROLLED_FAILURE"})
 _client = None
 
