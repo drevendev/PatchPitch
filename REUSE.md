@@ -32,5 +32,7 @@ is not copied or bundled into PatchPitch.
 Optional narration uses Kokoro-82M v1.0 (Apache-2.0), via kokoro-onnx (MIT).
 Weights and voice packages are downloaded separately and are not bundled in this
 repository. The previously approved narrated demo is published under `public-demo/`;
-private capture sessions and local evaluation evidence remain excluded. The new
-0.2.0 candidate and its evidence have not been published.
+private capture sessions and local evaluation evidence remain excluded. The
+0.2.0 PR includes only the approved edited examples and public source references
+staged under `public-demo/releases/`. Release, Pages deployment, X and DEV
+publication remain separate owner decisions.

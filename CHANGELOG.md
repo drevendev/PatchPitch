@@ -1,6 +1,6 @@
 # PatchPitch local development log
 
-## 2026-10-20 — 0.2.0 Social Field Test candidate (local, unpublished)
+## 2026-10-20 — 0.2.0 Social Field Test candidate (PR review)
 
 - Added versioned PatchPitch/Idle Fantasy Shop fact packs, strict JSON import,
   source provenance mapping and explicit selection confirmation (#30).
@@ -16,9 +16,13 @@
   post-challenge development (#28). Existing published assets are unchanged.
 - Added offline API/browser/privacy regressions and an opt-in three-case real
   browser/Gemma pilot. Owner acceptance and publication remain separate gates.
+- Recorded owner acceptance of the three edited texts and the application;
+  real X composer preview is deferred by the owner and has not passed.
+- Staged a version-labelled Pages example page for review, preserving the
+  accepted historical article and recording. Deployment remains manual.
 
-No remote push, GitHub release/tag, Pages deployment or social publication is
-part of this candidate preparation. Full sessions (#11), feedback (#36/#37),
+The owner authorized PR preparation and exact-head CI. No merge, GitHub Release/tag,
+Pages deployment or social publication is included. Full sessions (#11), feedback (#36/#37),
 Git import and a hosted live model remain later work.
 
 ## 2026-10-19 — formats, styles and auto tags

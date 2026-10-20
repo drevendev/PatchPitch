@@ -15,7 +15,7 @@ the setup below.
 
 ## Run locally
 
-### 0.2.0 local candidate: Social Field Test
+### 0.2.0 review candidate: Social Field Test
 
 This candidate adds **X Single** and **X Thread** (3–7 posts, default five).
 Load **Reviewed fact packs**, inspect their provenance, confirm the selected
@@ -46,10 +46,14 @@ A close/refresh warning is best effort; it does not save or restore a session.
 Copy plain text or download recognizable UTF-8 Markdown files before leaving.
 Nothing is posted to X and there are no platform credentials or cloud fallbacks.
 
-From an already prepared Windows workspace:
+The project author accepted the three edited pilot texts and the application.
+The real X composer check was explicitly deferred; it has not passed.
+See the [review record and release gates](docs/0.2.0-review.md). Preparing the PR
+and running its CI do not create a Release or deploy the staged Pages update.
+
+From the root of an already prepared Windows checkout:
 
 ```powershell
-Set-Location C:\MyProjects\Codex\PatchPitch
 $env:PATCHPITCH_MODEL = 'gemma4:12b'
 $env:PATCHPITCH_SENTRY_DSN = ''
 .\scripts\start_local.ps1
@@ -71,8 +75,9 @@ each attempt under ignored `artifacts/release-0.2.0/<head-sha>/`. Records distin
 dirty source-tree hashes, configured and returned model identity, observed
 health/tags digest, raw response, final text and failures. Missing identity is
 unknown, not inferred. A health digest is not an inference-returned digest.
-Rejected model output is retained as local error evidence. Owner acceptance and
-the real X composer preview remain `NOT_RUN` until the owner performs them.
+Rejected model output is retained as local error evidence. New pilot captures
+start with owner acceptance and X preview marked `NOT_RUN`; later owner decisions
+are recorded separately instead of rewriting the original capture.
 Use `--interactive-review` to pause after each real response for explicit operator
 edits before clipboard/download verification; this still does not imply owner approval.
 
@@ -287,8 +292,10 @@ fallback. No paid voice API, music or voice cloning is used.
 Private handoff files and local evaluation evidence stay excluded from Git.
 The previously approved article, demo video and supporting assets are intentionally
 published from `public-demo/`. This repository also contains implementation,
-examples, tests and reproduction scripts. The 0.2.0 candidate and its new evidence
-have not been published. See [REUSE.md](REUSE.md) and
+examples, tests and reproduction scripts. The 0.2.0 source candidate includes
+approved edited examples staged for a future Pages update. Full raw evidence
+remains private; Release, Pages deployment, X and DEV publication are separate
+owner decisions. See [REUSE.md](REUSE.md) and
 [third-party notices](THIRD_PARTY_NOTICES.md) for provenance.
 
 This new project began 2026-10-18. Any source changes after the challenge cutoff
