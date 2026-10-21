@@ -11,6 +11,9 @@
   truncation, repair or filesystem/browser-storage persistence.
 - Add regressions for all five formats, overflow, malformed/incomplete output,
   transport failure, safe response display, retry, exports and telemetry privacy.
+- PR review correction: associate each regenerated card with its generation record
+  so JSON export includes its current edits and media notes. A later rewrite of
+  that card no longer supplies a snapshot to the superseded record.
 - PR #44 was merged on 2026-10-20; post-merge CI passed 177 tests. This follow-up
   remains separate from Release, Pages, X and DEV publication.
 

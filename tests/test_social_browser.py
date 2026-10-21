@@ -115,6 +115,49 @@ def test_regeneration_locks_and_preserves_other_edits(ui_url,monkeypatch,failure
         browser.close()
 
 
+def test_regeneration_record_exports_current_target_without_borrowing_later_rewrites(ui_url,monkeypatch):
+    calls=[]
+    with sync_playwright() as p:
+        browser=p.chromium.launch();page=open_page(browser,ui_url)
+        page.on("dialog",lambda d:d.accept())
+        def answer(route):
+            body=route.request.post_data_json;calls.append(body)
+            route.fulfill(json=result_for(body,monkeypatch))
+        page.route("**/api/social",answer)
+        load_and_select(page);page.locator("#generate").click()
+        expect(page.locator(".social-card")).to_have_count(5)
+        target=page.locator('[data-post-id="P03"]')
+        target.get_by_role("button",name="Regenerate this post",exact=True).click()
+        expect(page.locator("#record-choice option")).to_have_count(2)
+        expect(page.locator("#text-P03")).to_be_enabled()
+        page.locator("#text-P03").fill("My edited regenerated card.")
+        page.locator("#text-P01").fill("Keep my other edited card.")
+        page.locator("#media-P03").fill("Approved screenshot note.")
+        page.locator("#generation-records > summary").click()
+        page.locator("#record-choice").select_option("A02")
+        page.locator("#copy-record").click()
+        first=json.loads(page.evaluate("navigator.clipboard.readText()"))
+        assert first["input_snapshot"]["operation"]=="regenerate"
+        snapshot=first["review_snapshot"]
+        assert snapshot["posts"][2]["text"]=="My edited regenerated card."
+        assert snapshot["posts"][0]["text"]=="Keep my other edited card."
+        assert snapshot["posts"][2]["media_note"]=="Approved screenshot note."
+        assert "My edited regenerated card." in snapshot["markdown"]
+        target.get_by_role("button",name="Regenerate this post",exact=True).click()
+        expect(page.locator("#record-choice option")).to_have_count(3)
+        expect(page.locator("#text-P03")).to_be_enabled()
+        page.locator("#copy-record").click()
+        latest=json.loads(page.evaluate("navigator.clipboard.readText()"))
+        assert latest["review_snapshot"]["posts"][2]["text"]==page.locator("#text-P03").input_value()
+        page.locator("#record-choice").select_option("A02")
+        page.locator("#copy-record").click()
+        older=json.loads(page.evaluate("navigator.clipboard.readText()"))
+        assert "review_snapshot" not in older
+        first.pop("review_snapshot")
+        assert older==first and len(calls)==3
+        browser.close()
+
+
 def test_unload_guard_and_count_policy_parity(ui_url,monkeypatch):
     with sync_playwright() as p:
         browser=p.chromium.launch();page=open_page(browser,ui_url)

@@ -40,7 +40,8 @@ function generationRecordExport(){
   saveCurrent();
   const record=structuredClone(selectedGenerationRecord());
   // Keep original API data immutable; edited text is a separate review snapshot.
-  const saved=[...drafts.values()].find(state=>state.data.local_record_id===record.id);
+  const saved=[...drafts.values()].find(state=>state.data.local_record_id===record.id ||
+    state.posts?.some(post=>post.local_record_id===record.id));
   if(saved)record.review_snapshot={markdown:saved.markdown,posts:saved.posts,edited:saved.edited,
     validation:"Snapshot of the current draft; manual edits have not been revalidated."};
   return JSON.stringify(record,null,2)+"\n";

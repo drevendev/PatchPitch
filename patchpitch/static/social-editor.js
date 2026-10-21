@@ -48,7 +48,7 @@ function socialMarkdown(){return socialPosts.map((p,i)=>`## Post ${i+1} of ${soc
 function saveSocial(){currentMarkdown=socialMarkdown();$("edited-label").hidden=!edited;saveCurrent();}
 function renderSocial(data,saved=null){
   result=data;edited=saved?.edited??false;currentTags=[];
-  socialPosts=structuredClone(saved?.posts??data.draft.posts.map((p,i)=>({...p,media_note:i===0?data.media_note||"":"",edited:false})));
+  socialPosts=structuredClone(saved?.posts??data.draft.posts.map((p,i)=>({...p,media_note:i===0?data.media_note||"":"",edited:false,local_record_id:data.local_record_id})));
   for(const id of ["empty-state","draft-view","tag-tools","editor","editor-label","character-count","edit"])$(id).hidden=true;
   for(const id of ["result","result-tools","social-posts"])$(id).hidden=false;
   $("timing").textContent=`${data.meta.returned_model??data.meta.model??"Model identity unknown"} · ${data.meta.elapsed_seconds.toFixed(1)}s · local`;
@@ -110,7 +110,7 @@ async function regeneratePost(id){
     rememberGeneration(request,{response:data},started);
     if(result!==previousResult)throw new Error("Draft changed; the new response was not applied.");
     const replacement=data.draft.posts[0];
-    Object.assign(post,{...replacement,edited:false});
+    Object.assign(post,{...replacement,edited:false,local_record_id:data.local_record_id});
     (result.regenerations ||= []).push(data);
     const used=new Set(socialPosts.flatMap(p=>p.source_ids));
     result.omitted_source_ids=Object.keys(result.sources).filter(id=>!used.has(id));
