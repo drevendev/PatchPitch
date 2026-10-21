@@ -1,5 +1,21 @@
 # PatchPitch local development log
 
+## Unreleased — large Git diffs
+
+- Split large committed diffs into lossless UTF-8 parts with file/part/byte
+  citations; show the full review and model-request plan before extraction.
+- Process bounded batches sequentially, retain original accepted/failed attempts,
+  and support stopping and explicit continuation from saved session checkpoints.
+- Keep candidate edits when continuing; require all parts to finish and explicit
+  human selection of at most 15 facts before writing. Preserve older sessions.
+- Raise Git read budgets to 128 KB per file and 192 KB total. The 6 KB cap now
+  applies to fragments; each model request has at most 12 KB of serialized evidence.
+- Retain candidate edits when re-inspecting the same diff, including Save/Open
+  while the preview is invalidated; validate originals before reattaching edits.
+- Allow session files up to 32 MB and check the actual formatted download size
+  before Save, so large checkpoint histories remain openable.
+- Publication remains manual.
+
 ## Unreleased — sessions and Git DevLogs
 
 - Share immutable source snapshots and original fact-pack identity across all five

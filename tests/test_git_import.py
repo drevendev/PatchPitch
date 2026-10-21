@@ -88,7 +88,7 @@ def test_invalid_paths_never_reach_model(git_repository, bad, monkeypatch):
         git_import.preview(git_import.PreviewInput(repo_path=str(root), base=base, head=head, files=[bad]))
 
 
-@pytest.mark.parametrize("content", ["x"*7000, "access_token = 'ghp_" + "a"*30 + "'\n"])
+@pytest.mark.parametrize("content", ["x"*(git_import.MAX_FILE_BYTES+1), "access_token = 'ghp_" + "a"*30 + "'\n"], ids=["read-limit", "credential"])
 def test_oversized_and_credential_diffs_fail_before_inference(git_repository, content, monkeypatch):
     root, base, head = git_repository
     (root/"feature.py").write_text(content, encoding="utf-8")
@@ -194,3 +194,124 @@ def test_full_git_provenance_fits_generation_transport(endpoint, input_data, mon
         response = client.post(endpoint, json=body)
     assert response.status_code == 200
     assert response.json()["source_context"]["omitted_files"] == omitted
+
+
+@pytest.fixture
+def large_git_repository(git_repository):
+    root, _, base = git_repository
+    (root/"feature.py").write_text("".join(f"value_{i} = 'committed line {i} with useful context'\n" for i in range(750)), encoding="utf-8")
+    head = commit(root, "Implement a large file change")
+    return root, base, head
+
+
+def test_large_file_preview_is_complete_and_model_calls_are_bounded(large_git_repository, monkeypatch):
+    from patchpitch import git_chunks
+    root, base, head = large_git_repository
+    inspected = git_import.inspect(git_import.InspectInput(repo_path=str(root), count=1))
+    assert inspected["files"][0]["eligible"]  # More than the former 500-line cap.
+    picked = git_import.PreviewInput(repo_path=str(root), base=base, head=head, files=["feature.py"])
+    bundle = git_import.preview(picked)
+    expected = subprocess.check_output(["git","-C",str(root),"diff","--no-ext-diff","--no-textconv","--no-renames","--unified=2",base,head,"--","feature.py"])
+    assert b"".join(e["diff"].encode() for e in bundle["evidence"]) == expected
+    assert len(bundle["chunking"]["batches"]) > 1
+    calls = []
+    def model(path, payload, timeout):
+        calls.append(payload)
+        ids = payload["format"]["$defs"]["Candidate"]["properties"]["evidence_ids"]["items"]["enum"]
+        return {"done":True,"model":"MOCK","message":{"content":json.dumps({"facts":[
+            {"text":"Committed values were added.","kind":"implemented","evidence_ids":[ids[0]]}]})}}
+    monkeypatch.setattr(generator,"ollama_json",model)
+    for batch in bundle["chunking"]["batches"]:
+        response = git_import.extract(git_import.ExtractInput(**picked.model_dump(),reviewed=True,
+            preview_sha256=bundle["preview_sha256"],batch_index=batch["index"]))
+        assert response["batch"]["evidence_ids"] == batch["evidence_ids"]
+        assert [e["id"] for e in response["evidence"]] == batch["evidence_ids"]
+        assert response["review_required"]
+        assert len(json.dumps(response["evidence"],ensure_ascii=False).encode()) <= git_chunks.BATCH_BYTES
+    assert len(calls) == len(bundle["chunking"]["batches"])
+    assert all(call["options"]["num_ctx"] >= 24_576 for call in calls)
+    # An unrelated dirty tree change does not invalidate immutable reviewed chunks.
+    (root/"scratch.py").write_text("private uncommitted data",encoding="utf-8")
+    assert git_import.preview(picked)["preview_sha256"] == bundle["preview_sha256"]
+    assert "private uncommitted data" not in json.dumps(calls)
+
+
+def test_late_credential_or_wrong_batch_citation_never_becomes_a_fact(large_git_repository, monkeypatch):
+    root, base, head = large_git_repository
+    picked = git_import.PreviewInput(repo_path=str(root),base=base,head=head,files=["feature.py"])
+    bundle = git_import.preview(picked)
+    other = bundle["evidence"][-1]["id"]
+    monkeypatch.setattr(generator,"ollama_json",lambda *a,**kw:{"done":True,"message":{"content":json.dumps({"facts":[
+        {"text":"Unsupported later code.","kind":"implemented","evidence_ids":[other]}]})}})
+    with pytest.raises(generator.GenerationError) as error:
+        git_import.extract(git_import.ExtractInput(**picked.model_dump(),reviewed=True,preview_sha256=bundle["preview_sha256"]))
+    assert error.value.evidence["raw_response"] is not None
+    with (root/"feature.py").open("a",encoding="utf-8") as f:
+        f.write("\naccess_token = 'ghp_"+"a"*30+"'\n")
+    head = commit(root,"Sensitive test fixture at the end")
+    monkeypatch.setattr(generator,"ollama_json",lambda *a,**kw:pytest.fail("All files must be scanned before the first batch"))
+    with pytest.raises(generator.GenerationError,match="possible credential"):
+        git_import.preview(picked.model_copy(update={"head":head}))
+
+
+def test_empty_batch_and_invalid_batch_index(large_git_repository, monkeypatch):
+    root, base, head = large_git_repository
+    picked=git_import.PreviewInput(repo_path=str(root),base=base,head=head,files=["feature.py"])
+    bundle=git_import.preview(picked)
+    calls=[]
+    monkeypatch.setattr(generator,"ollama_json",lambda *a,**kw:calls.append(1) or {"done":True,"message":{"content":'{"facts":[]}'}})
+    request=git_import.ExtractInput(**picked.model_dump(),reviewed=True,preview_sha256=bundle["preview_sha256"])
+    assert git_import.extract(request)["facts"] == []
+    with pytest.raises(generator.GenerationError):
+        git_import.extract(request.model_copy(update={"batch_index":23}))
+    assert len(calls)==1
+
+
+def test_large_root_baseline_preserves_the_entire_committed_blob(large_git_repository):
+    root,_,head=large_git_repository
+    preview=git_import.preview(git_import.PreviewInput(repo_path=str(root),base="",head=head,files=["feature.py"]))
+    expected=b"New file at root baseline:\n"+subprocess.check_output(["git","-C",str(root),"show",head+":feature.py"])
+    assert b"".join(e["diff"].encode() for e in preview["evidence"])==expected
+    assert len(preview["evidence"])>1
+
+
+@pytest.mark.parametrize("damage", [None,"completed","citation","original","candidate","checkpoint","repository"], ids=["valid","completion","citation","original","edited-original","order","repo"])
+def test_partial_git_session_preserves_edits_and_validates_checkpoints(large_git_repository, monkeypatch, damage):
+    from patchpitch.sessions import GitReview
+    root, base, head=large_git_repository
+    picked=git_import.PreviewInput(repo_path=str(root),base=base,head=head,files=["feature.py"])
+    preview=git_import.preview(picked)
+    monkeypatch.setattr(generator,"ollama_json",lambda *a,**kw:{"done":True,"model":"MOCK","message":{"content":json.dumps({"facts":[
+        {"text":"A reviewed addition.","kind":"implemented","evidence_ids":["D01"]}]})}})
+    response=git_import.extract(git_import.ExtractInput(**picked.model_dump(),reviewed=True,preview_sha256=preview["preview_sha256"]))
+    run={"schema_version":2,"kind":"patchpitch_git_review","status":"partial",**preview,
+        "attempts":[{"batch_index":0,"status":"accepted","response":response,"error":None},
+            {"batch_index":1,"status":"failed","response":{"raw_response":{"message":{"content":"Rejected original"}}},
+                "error":{"code":"invalid_draft","message":"Rejected batch"}}]}
+    facts=[{**f,"batch_index":0,"current_text":"Мои точные правки.\n","include":True} for f in response["facts"]]
+    saved={"inspection":git_import.inspect(git_import.InspectInput(repo_path=str(root),count=1)),
+        "preview":preview,"facts":facts,"record":run,"selected_files":["feature.py"]}
+    if damage=="completed": run["status"]="complete"
+    if damage=="citation": response["facts"][0]["evidence_ids"]=[preview["evidence"][-1]["id"]]
+    if damage=="original": response["raw_response"]["message"]["content"]='{"facts":[]}'
+    if damage=="candidate": facts[0]["text"]="Changed original candidate"
+    if damage=="checkpoint": run["attempts"][1]["batch_index"]=0
+    if damage=="repository": response["source_context"]={**response["source_context"],"repository_id":"f"*64}
+    if damage:
+        with pytest.raises(ValueError): GitReview.model_validate(saved)
+    else:
+        checked=GitReview.model_validate(saved)
+        assert checked.facts[0].current_text=="Мои точные правки.\n"
+
+
+def test_legacy_saved_diff_remains_openable(git_repository):
+    from patchpitch import git_chunks
+    from patchpitch.sessions import GitReview
+    picked=selection(git_repository)
+    preview=git_import.preview(picked)
+    preview.pop("chunking")
+    preview["preview_sha256"]=git_chunks.preview_hash(picked.base,picked.head,preview["evidence"])
+    saved={"inspection":git_import.inspect(git_import.InspectInput(repo_path=picked.repo_path,count=1)),
+        "preview":preview,"facts":[{"text":"Old saved fact.","current_text":"Exact edit.\n","include":True,"kind":"implemented","evidence_ids":["D01"]}],
+        "record":None,"selected_files":["feature.py"]}
+    assert GitReview.model_validate(saved).facts[0].current_text=="Exact edit.\n"
