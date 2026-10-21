@@ -48,7 +48,7 @@ function socialMarkdown(){return socialPosts.map((p,i)=>`## Post ${i+1} of ${soc
 function saveSocial(){currentMarkdown=socialMarkdown();$("edited-label").hidden=!edited;saveCurrent();}
 function renderSocial(data,saved=null){
   result=data;edited=saved?.edited??false;currentTags=[];
-  socialPosts=structuredClone(saved?.posts??data.draft.posts.map((p,i)=>({...p,media_note:i===0?data.media_note||"":"",edited:false})));
+  socialPosts=structuredClone(saved?.posts??data.draft.posts.map((p,i)=>({...p,media_note:i===0?data.media_note||"":"",edited:false,local_record_id:data.local_record_id})));
   for(const id of ["empty-state","draft-view","tag-tools","editor","editor-label","character-count","edit"])$(id).hidden=true;
   for(const id of ["result","result-tools","social-posts"])$(id).hidden=false;
   $("timing").textContent=`${data.meta.returned_model??data.meta.model??"Model identity unknown"} · ${data.meta.elapsed_seconds.toFixed(1)}s · local`;
@@ -104,16 +104,18 @@ async function regeneratePost(id){
   // Keep a CTA only on the card where the author currently has that exact CTA.
   request.cta_text=request.cta_text&&post.text.endsWith("\n\n"+request.cta_text)?request.cta_text:"";
   setBusy(true);error("");$("status").textContent=`Rewriting ${id} with local Gemma…`;
+  const started=performance.now();
   try{
     const data=await jsonRequest("/api/social",request);
+    rememberGeneration(request,{response:data},started);
     if(result!==previousResult)throw new Error("Draft changed; the new response was not applied.");
     const replacement=data.draft.posts[0];
-    Object.assign(post,{...replacement,edited:false});
+    Object.assign(post,{...replacement,edited:false,local_record_id:data.local_record_id});
     (result.regenerations ||= []).push(data);
     const used=new Set(socialPosts.flatMap(p=>p.source_ids));
     result.omitted_source_ids=Object.keys(result.sources).filter(id=>!used.has(id));
     for(const warning of data.warnings){const text=`${id} regeneration: ${warning}`;(result.regeneration_warnings ||= []).push(text);const p=document.createElement("p");p.textContent=text;$("warnings").append(p);}
     edited=true;renderSocialCards();saveSocial();$("status").textContent=`${id} regenerated. Other cards unchanged. Review the new wording and verify in X.`;
-  }catch(e){error(e.message);$("status").textContent="All previous posts, media notes and edits remain unchanged.";}
+  }catch(e){rememberGeneration(request,{error:e},started);error(e.message);$("status").textContent="All previous posts, media notes and edits remain unchanged. Review this attempt below or retry manually.";}
   finally{setBusy(false);renderSocialCards();$("text-"+id)?.focus();}
 }

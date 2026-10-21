@@ -188,12 +188,17 @@ def _generate(request: PitchInput, observation):
     start = time.perf_counter()
     prompt = read_prompt(request.format)
     payload = build_payload(request, prompt=prompt)
-    with observation.span("ollama", MODEL) as span:
-        raw = ollama_json("/api/chat", payload, timeout=TIMEOUT)
-        span.response(raw)
-    elapsed = round(time.perf_counter() - start, 3)
-    with observation.span("validation"):
-        draft, raw_draft, warnings, count = validate_response(raw, request, payload)
+    raw = None
+    try:
+        with observation.span("ollama", MODEL) as span:
+            raw = ollama_json("/api/chat", payload, timeout=TIMEOUT)
+            span.response(raw)
+        elapsed = round(time.perf_counter() - start, 3)
+        with observation.span("validation"):
+            draft, raw_draft, warnings, count = validate_response(raw, request, payload)
+    except GenerationError as exc:
+        exc.evidence = generation_evidence(raw, payload, time.perf_counter() - start, prompt=prompt)
+        raise
     limit = FORMATS[request.format]["limit"]
     sources = {c.id: c.text for c in request.changes if c.include}
     used={source for _,block in blocks(draft) for source in block.source_ids}
@@ -202,7 +207,7 @@ def _generate(request: PitchInput, observation):
         warnings.append("Ollama did not return a model identity; configured model is not verified response identity.")
     elif returned != MODEL:
         warnings.append("Returned model differs from the configured model. Review model identity before comparing results.")
-    return {"draft": draft.model_dump(), "raw_draft":raw_draft,"automated_cleanup":[], "prose_assembly":"Model paragraphs formatted as Markdown; no words rewritten", "markdown": markdown(draft, request.cta_text), "body_markdown": markdown(draft, request.cta_text, include_tags=False), "warnings": warnings,
+    return {"draft": draft.model_dump(), "raw_draft":raw_draft,"raw_response":raw,"input_snapshot":request.model_dump(),"automated_cleanup":[], "prose_assembly":"Model paragraphs formatted as Markdown; no words rewritten", "markdown": markdown(draft, request.cta_text), "body_markdown": markdown(draft, request.cta_text, include_tags=False), "warnings": warnings,
             "context": {"product": request.product.name, "release_label": request.release_label, "generated_at": datetime.now(timezone.utc).isoformat()},
             "presentation":{"format":request.format,"format_label":FORMATS[request.format]["label"],"style":request.style,"style_label":STYLES[request.style]["label"],"auto_tags":request.auto_tags,"cta_text":request.cta_text,"characters":count,"limit":limit},
             "omitted_source_ids":sorted(set(sources)-used),
@@ -230,9 +235,19 @@ def response_usage(raw):
     return result
 
 
+def generation_evidence(raw, payload, elapsed_seconds, *, prompt=None):
+    """Local response evidence, never telemetry or an automatically saved file."""
+    return {"raw_response": raw, "configured_model": payload["model"],
+            "returned_model": response_identity(raw), "options": copy.deepcopy(payload["options"]),
+            "elapsed_seconds": round(elapsed_seconds, 3),
+            "prompt_sha256": hashlib.sha256((prompt if prompt is not None else payload["messages"][0]["content"]).encode()).hexdigest(),
+            "request_sha256": hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest(),
+            "thinking_enabled": payload.get("think", False), **response_usage(raw)}
+
+
 def validate_response(raw, request, payload):
     try:
-        if not raw.get("done") or raw.get("done_reason") == "length":
+        if not isinstance(raw, dict) or not raw.get("done") or raw.get("done_reason") == "length":
             raise GenerationError("incomplete_response", "The model did not finish its draft. Try again manually.")
         raw_draft=json.loads(raw["message"]["content"])
         draft = (Draft if request.format == "devlog" else PostDraft).model_validate(raw_draft)

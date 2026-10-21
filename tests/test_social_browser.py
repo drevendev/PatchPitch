@@ -106,7 +106,55 @@ def test_regeneration_locks_and_preserves_other_edits(ui_url,monkeypatch,failure
         expect(page.locator("#text-P01")).to_have_value("Keep this exact first edit.")
         if failure:expect(page.locator("#text-P03")).to_have_value("Keep third unless replacement succeeds.")
         else:assert page.locator("#text-P03").input_value().startswith("PatchPitch keeps")
+        assert page.locator("#record-choice option").count()==2
+        if failure:
+            expect(page.locator("#record-outcome")).to_contain_text("Failed")
+            assert "rewrite P03" in page.locator("#record-choice option:checked").inner_text()
+            assert page.locator("#record-raw").inner_text()=="No model response was available for this attempt."
         assert len(calls)==2
+        browser.close()
+
+
+def test_regeneration_record_exports_current_target_without_borrowing_later_rewrites(ui_url,monkeypatch):
+    calls=[]
+    with sync_playwright() as p:
+        browser=p.chromium.launch();page=open_page(browser,ui_url)
+        page.on("dialog",lambda d:d.accept())
+        def answer(route):
+            body=route.request.post_data_json;calls.append(body)
+            route.fulfill(json=result_for(body,monkeypatch))
+        page.route("**/api/social",answer)
+        load_and_select(page);page.locator("#generate").click()
+        expect(page.locator(".social-card")).to_have_count(5)
+        target=page.locator('[data-post-id="P03"]')
+        target.get_by_role("button",name="Regenerate this post",exact=True).click()
+        expect(page.locator("#record-choice option")).to_have_count(2)
+        expect(page.locator("#text-P03")).to_be_enabled()
+        page.locator("#text-P03").fill("My edited regenerated card.")
+        page.locator("#text-P01").fill("Keep my other edited card.")
+        page.locator("#media-P03").fill("Approved screenshot note.")
+        page.locator("#generation-records > summary").click()
+        page.locator("#record-choice").select_option("A02")
+        page.locator("#copy-record").click()
+        first=json.loads(page.evaluate("navigator.clipboard.readText()"))
+        assert first["input_snapshot"]["operation"]=="regenerate"
+        snapshot=first["review_snapshot"]
+        assert snapshot["posts"][2]["text"]=="My edited regenerated card."
+        assert snapshot["posts"][0]["text"]=="Keep my other edited card."
+        assert snapshot["posts"][2]["media_note"]=="Approved screenshot note."
+        assert "My edited regenerated card." in snapshot["markdown"]
+        target.get_by_role("button",name="Regenerate this post",exact=True).click()
+        expect(page.locator("#record-choice option")).to_have_count(3)
+        expect(page.locator("#text-P03")).to_be_enabled()
+        page.locator("#copy-record").click()
+        latest=json.loads(page.evaluate("navigator.clipboard.readText()"))
+        assert latest["review_snapshot"]["posts"][2]["text"]==page.locator("#text-P03").input_value()
+        page.locator("#record-choice").select_option("A02")
+        page.locator("#copy-record").click()
+        older=json.loads(page.evaluate("navigator.clipboard.readText()"))
+        assert "review_snapshot" not in older
+        first.pop("review_snapshot")
+        assert older==first and len(calls)==3
         browser.close()
 
 

@@ -145,6 +145,21 @@ switch between them. Refreshing the page clears them. A new request locks the
 editor until success or failure; failure keeps the previous draft and edits.
 Generating over an edited draft of the same format requires confirmation.
 
+**Generation records** keeps each attempted generation or single-card rewrite in
+this tab, including failures. Select an attempt to inspect its original model
+response and the reason it was rejected. A failure leaves the input and existing
+draft edits intact; retry is always an explicit action. A later success keeps the
+earlier failure available. A timeout without a response shows that no response is
+available and does not invent a returned model identity.
+
+Use **Copy record JSON** or **Download record JSON** to save the input snapshot,
+original response, error and model settings for review. Successful records also
+include the current draft snapshot when that draft is still available. Original
+API responses and manual edits stay separate; edited text is not automatically
+revalidated. Records may contain private input and model text. They are not
+automatically written to disk, browser storage or telemetry, and are lost when the
+tab closes or refreshes. The unload warning remains best effort.
+
 An optional writing sample helps retain the maker's voice. The first three selected
 notes lead the announcement; remaining topics appear in a compact secondary section.
 Technical notes are split into factual units for the model's context. Gemma writes
