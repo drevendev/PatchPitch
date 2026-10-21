@@ -3,7 +3,7 @@ const $ = id => document.getElementById(id);
 let changes = [], previewText = null, previewTimer, result = null, currentMarkdown = "", edited = false, busy = false;
 const drafts = new Map();
 let currentTags = [];
-let packContext = null, socialPosts = [], unloadProtected = false;
+let packContext = null, socialPosts = [], unloadProtected = false, inputRevision = 0;
 const isSocial = format => ["x_single","x_thread"].includes(format);
 const formatNames = {devlog:"Devlog",community:"Community post",short:"Short post",x_single:"X Single",x_thread:"X Thread"};
 const formatHints = {devlog:"The full story, with every selected topic.",community:"A few useful changes, in a post for your community.",short:"One useful thought. 280 characters including your CTA and tags.",x_single:"One concrete thought. Edit, check sources and verify in X.",x_thread:"A connected story. Each card stays independently editable."};
@@ -72,14 +72,16 @@ async function jsonRequest(path, body) {
   return data;
 }
 async function prepare() {
-  const text = $("changes").value;
+  const text = $("changes").value, revision = inputRevision;
   if (text === previewText) return;
   if (!text.trim()) {changes = []; $("change-preview").replaceChildren(); $("selection-panel").hidden=true; previewText = text; return;}
   const data = await jsonRequest("/api/prepare", {text});
-  if (text !== $("changes").value) return;
+  if (revision !== inputRevision || text !== $("changes").value) return;
   applyPrepared(text, data);
 }
 function applyPrepared(text, data) {
+  inputRevision++; clearTimeout(previewTimer);
+  protectSession();
   previewText = text; changes = data.changes;
   $("confirmed").checked = false;
   $("change-preview").replaceChildren();
@@ -95,7 +97,7 @@ function applyPrepared(text, data) {
     const first=clean.split(/\.\s/)[0];const title=first.length>68 ? first.slice(0,65).trim()+"…" : first;
     name.append(id,document.createTextNode(title));
     const badge=document.createElement("span");badge.className="change-badge";badge.textContent=change.include ? "Included" : "Left out";
-    check.addEventListener("change", () => {change.include = check.checked;row.classList.toggle("excluded", !check.checked);badge.textContent=check.checked ? "Included" : "Left out";$("confirmed").checked=false;selectionCount();});
+    check.addEventListener("change", () => {inputRevision++;change.include = check.checked;row.classList.toggle("excluded", !check.checked);badge.textContent=check.checked ? "Included" : "Left out";$("confirmed").checked=false;selectionCount();});
     toggle.append(check);top.append(toggle,name,badge);
     const original=document.createElement("details");original.className="change-original";
     const summary=document.createElement("summary");summary.textContent="Read original note";
@@ -108,7 +110,7 @@ function applyPrepared(text, data) {
   }
   selectionCount();
 }
-$("changes").addEventListener("input", () => {clearTimeout(previewTimer);packContext=null;$("pack-status").textContent="Manually edited notes. Review provenance and confirm the new selection."; $("confirmed").checked = false; previewTimer = setTimeout(() => prepare().catch(e => error(e.message)), 250);});
+$("changes").addEventListener("input", () => {inputRevision++;clearTimeout(previewTimer);packContext=null;$("pack-status").textContent="Manually edited notes. Review provenance and confirm the new selection."; $("confirmed").checked = false; previewTimer = setTimeout(() => prepare().catch(e => error(e.message)), 250);});
 $("example").addEventListener("click", async () => {
   if (busy) return;
   if (edited && !confirm("Replace the input with the illustrative example? Your current draft will stay visible.")) return;
@@ -121,7 +123,7 @@ $("example").addEventListener("click", async () => {
     // Reserve loading through preparation, then replace the input atomically.
     // A failed fetch/prepare leaves the current form and draft untouched.
     const prepared=await jsonRequest("/api/prepare", {text:fields.changes});
-    packContext=null;
+    $("writing-goal").value="release";packContext=null;$("pack-status").textContent="Human-prepared code-patch notes · review before use.";$("media-note").value="";
     for(const [id,value] of Object.entries(fields)) $(id).value=value;
     applyPrepared(fields.changes, prepared);
     $("example-label").textContent=`Code-patch input · ${data.product.name} ${data.release_label} · review the selected facts before generating.`;
@@ -134,8 +136,10 @@ function setBusy(value) {
   busy = value; $("generate").disabled = value; $("example").disabled = value;
   $("pitch-form").setAttribute("aria-busy", String(value));
   for (const control of $("pitch-form").querySelectorAll("input,textarea,select")) control.disabled = value;
-  for (const control of document.querySelectorAll("#edit,#editor,#tag-chips button,#saved-drafts button")) control.disabled=value;
+  for (const control of document.querySelectorAll("#edit,#editor,#tag-chips button,#saved-drafts button,#record-publication,#published-url")) control.disabled=value;
   for (const control of document.querySelectorAll("#load-pack,#fact-pack,#pack-file,#social-posts button,#social-posts textarea,#social-posts input")) control.disabled=value || control.dataset.boundaryDisabled==="true";
+  for (const control of document.querySelectorAll("#session-tools input,#session-tools button,#git-tools input,#git-tools button,#git-tools select,#git-tools textarea")) control.disabled=value;
+  if(!value && typeof syncGitButtons === "function") syncGitButtons();
   if(!value && isSocial($("format").value)) $("auto-tags").disabled=true;
 }
 $("generate").addEventListener("click",()=>{closeDisclosure($("selection-panel"));});
@@ -147,8 +151,10 @@ function saveCurrent() {
     if(!unloadProtected){window.addEventListener("beforeunload",warnUnload);unloadProtected=true;}
   }
 }
-function warnUnload(event){if(!drafts.size && !generationRecords.length)return;event.preventDefault();event.returnValue=true;}
-function contextKey(format,context={product:$("product").value,release_label:$("release").value}){return JSON.stringify([context.product,context.release_label,format]);}
+function protectSession(){if(!unloadProtected){window.addEventListener("beforeunload",warnUnload);unloadProtected=true;}}
+document.addEventListener("input",protectSession);
+function warnUnload(event){if(!hasSessionContent())return;event.preventDefault();event.returnValue=true;}
+function contextKey(format,context={product:$("product").value.trim(),release_label:$("release").value.trim()}){return JSON.stringify([context.product,context.release_label,format]);}
 function characterCount() {
   const limit=result?.presentation?.limit;
   $("character-count").hidden=!limit;
@@ -170,6 +176,7 @@ function showTagChips() {
   }
 }
 function render(data, saved=null) {
+  data.context ||= {product:$("product").value,release_label:$("release").value,generated_at:new Date().toISOString()};
   if(isSocial(data.presentation?.format)){renderSocial(data,saved);return;}
   result = data; currentMarkdown = saved?.markdown ?? data.markdown; edited = saved?.edited ?? false;
   socialPosts=[];$("social-posts").hidden=true;$("edit").hidden=false;$("copy").textContent="Copy Markdown";$("download").textContent="Download Markdown ↓";
@@ -177,7 +184,7 @@ function render(data, saved=null) {
   $("empty-state").hidden = true; $("result").hidden = false; $("result-tools").hidden = false;
   $("editor").hidden = true; $("editor-label").hidden = true; $("draft-view").hidden = false; $("edited-label").hidden = true; $("edit").textContent = "Edit draft";
   $("timing").textContent = `${data.meta.returned_model ?? data.meta.model ?? "Model identity unknown"} · ${data.meta.elapsed_seconds.toFixed(1)}s · generated locally`;
-  $("output-preset").textContent=data.presentation ? `${data.presentation.format_label} / ${data.presentation.style_label}` : "";
+  $("output-preset").textContent=`${data.context.product} · ${data.context.release_label || "Unversioned"} · ${data.presentation?.format_label || "Devlog"} / ${data.presentation?.style_label || "Warm"}`;
   $("draft-view").replaceChildren();
   if(data.presentation && data.presentation.format!=="devlog") {
     const prose=document.createElement("p");prose.className="post-prose";prose.textContent=data.draft.text;$("draft-view").append(prose);
@@ -215,15 +222,19 @@ function render(data, saved=null) {
     const omitted=document.createElement("p");omitted.className="omission-note";omitted.textContent=`Not referenced in this ${data.presentation.format_label.toLowerCase()}: ${data.omitted_source_ids.join(", ")}. Short formats do not cover every detail; review the cited notes too.`;$("draft-view").append(omitted);
   }
   $("source-list").replaceChildren();
+  if(data.source_snapshot?.some(s=>s.source_ref || s.source_url)) {
+    renderSourceSnapshot(data.source_snapshot);
+  } else {
   const sourceUses=new Map();
   for (const mapping of data.source_map) for (const id of mapping.source_ids) {if(!sourceUses.has(id))sourceUses.set(id,[]);sourceUses.get(id).push(mapping.block);}
   for (const [id,uses] of sourceUses) {
     const section=document.createElement("section"), heading=document.createElement("h4");heading.textContent=`${id} · ${uses.join(" / ")}`;
     const original=document.createElement("details"), summary=document.createElement("summary"), text=document.createElement("p");summary.textContent="Read source note";text.textContent=data.sources[id];original.append(summary,text);section.append(heading,original);$("source-list").append(section);
   }
-  if(saved?.editing) openEditor();
+  }
+  if(saved?.editing) openEditor(true);
   $("edited-label").hidden=!edited;showTagChips();characterCount();saveCurrent();
-  renderSavedButtons();
+  renderSavedButtons();if(typeof syncGitButtons==="function")syncGitButtons();
 }
 $("pitch-form").addEventListener("submit", async event => {
   event.preventDefault(); if (busy) return;
@@ -234,9 +245,11 @@ $("pitch-form").addEventListener("submit", async event => {
     if (!$("confirmed").checked) throw new Error("Review the selected changes and confirm they belong in this announcement.");
     saveCurrent();
     if (drafts.get(contextKey($("format").value))?.edited && !confirm("Generate a new draft and replace your edited text? Copy or download it first if you want to keep it.")) return;
-    const body = {product:{name:$("product").value,description:$("description").value},audience:$("audience").value,release_label:$("release").value,voice_reference:$("voice").value,changes:changes.map(({id,text,include}) => ({id,text,include})),cta_text:$("cta").value,format:$("format").value,style:$("style").value,auto_tags:$("auto-tags").checked,confirmed:true};
+    const body = {product:{name:$("product").value,description:$("description").value},audience:$("audience").value,release_label:$("release").value,voice_reference:$("voice").value,changes:changes.map(({id,text,include}) => ({id,text,include})),cta_text:$("cta").value,format:$("format").value,style:$("style").value,auto_tags:$("auto-tags").checked,confirmed:true,writing_goal:$("writing-goal").value};
     const social=isSocial(body.format);
-    if(social){Object.assign(body,{auto_tags:false,intent:$("intent").value,post_count:Number($("post-count").value)});if(packContext)for(const k of ["source_references","pack_id","pack_version","pack_sha256"])body[k]=packContext[k];}
+    if(packContext)for(const k of ["source_references","pack_id","pack_version","pack_sha256","source_context"])if(packContext[k]!==undefined)body[k]=structuredClone(packContext[k]);
+    body.context_overrides=contextOverrides();
+    if(social)Object.assign(body,{auto_tags:false,intent:$("intent").value,post_count:Number($("post-count").value)});
     setBusy(true); const start = performance.now(); $("status").textContent="Writing with local Gemma… 0.0s";
     submittedBody=body;started=start;
     const timer = setInterval(() => $("status").textContent=`Writing with local Gemma… ${((performance.now()-start)/1000).toFixed(1)}s`, 200);
@@ -245,13 +258,25 @@ $("pitch-form").addEventListener("submit", async event => {
   } catch (e) {if(submittedBody)rememberGeneration(submittedBody,{error:e},started);error(e.message);$("status").textContent="Your input and any previous draft are still here. Review this attempt below or retry manually.";}
   finally {setBusy(false);}
 });
-function openEditor() {
-  if (!result || busy) return;
+function openEditor(restoring=false) {
+  if (!result || (busy && restoring !== true)) return;
   $("editor").value=currentMarkdown;$("editor").hidden=false;$("editor-label").hidden=false;$("draft-view").hidden=true;$("edited-label").hidden=false;$("edit").textContent="Editing Markdown";edited=true;$("editor").focus();
   $("tag-tools").hidden=true;
 }
-$("edit").addEventListener("click",openEditor);
+$("edit").addEventListener("click",()=>openEditor());
 $("editor").addEventListener("input", () => {if(busy)return;currentMarkdown=$("editor").value;edited=true;characterCount();saveCurrent();});
 $("copy").addEventListener("click", () => copyText(isSocial(result?.presentation?.format)?socialPlain():currentMarkdown));
 $("download").addEventListener("click", () => {const url=URL.createObjectURL(new Blob([currentMarkdown],{type:"text/markdown;charset=utf-8"}));const link=document.createElement("a");link.href=url;link.download=exportName(result);link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);$("status").textContent="Markdown downloaded. Nothing has been published.";});
 fetch("/api/health").then(r=>r.json()).then(data => {$("model-status").textContent=data.ollama==="ready" ? `${data.model} · local` : "Ollama needs attention · local";}).catch(()=>{$("model-status").textContent="Local connection unavailable";});
+
+function contextOverrides() {
+  if(!packContext)return [];
+  const values={product:packContext.product?.name,description:packContext.product?.description,audience:packContext.audience,release_label:packContext.release_label,voice_reference:packContext.voice_reference,cta_text:packContext.cta_text};
+  const fields={product:"product",description:"description",audience:"audience",release_label:"release",voice_reference:"voice",cta_text:"cta"};
+  return Object.keys(fields).filter(k=>values[k]!==undefined && $(fields[k]).value!==values[k]);
+}
+function updateContextReview() {
+  $("confirmed").checked=false;
+  if(packContext){const changed=contextOverrides();$("pack-status").textContent=changed.length?`Derived context (${changed.join(", ")}) · original source references retained; review again.`:`${packContext.pack_id || "Reviewed sources"} / ${packContext.pack_version || "Git range"} · original source identity; review before generation.`;}
+}
+for(const id of ["product","description","audience","release","voice","cta","writing-goal"])$(id).addEventListener("input",updateContextReview);

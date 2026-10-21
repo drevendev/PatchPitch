@@ -343,7 +343,9 @@ def test_local_security(client):
     assert client.get("/", headers={"host":"evil.example"}).status_code == 403
     assert client.post("/api/pitch", json={}, headers={"origin":"https://evil.example"}).status_code == 403
     assert client.post("/api/pitch", content="x", headers={"content-type":"text/plain"}).status_code == 415
-    assert client.post("/api/pitch", content="x" * 32001, headers={"content-type":"application/json"}).status_code == 413
+    for endpoint, limit in (("/api/pitch", 1_000_000), ("/api/social", 1_000_000),
+            ("/api/prepare", 32_000), ("/api/session/validate", 4_000_000)):
+        assert client.post(endpoint, content="x" * (limit+1), headers={"content-type":"application/json"}).status_code == 413
     assert "frame-ancestors 'none'" in client.get("/").headers["content-security-policy"]
 
 

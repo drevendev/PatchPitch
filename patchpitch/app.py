@@ -14,7 +14,7 @@ from . import __version__
 from . import generator
 from . import telemetry
 from .models import PitchInput, PrepareInput, SocialInput
-from . import social, fact_packs
+from . import social, fact_packs, sessions, git_import
 from .validation import prepare_lines
 from .build import source_hash
 
@@ -34,6 +34,9 @@ async def lifespan(app):
 app = FastAPI(title="PatchPitch", version=__version__, docs_url=None, redoc_url=None, openapi_url=None, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 generation_lock = threading.Lock()
+# Provenance and current-thread context are outside the model's fact budget, but
+# can exceed the original 32 KB transport cap within their existing field limits.
+REQUEST_LIMITS = {"/api/session/validate": 4_000_000, "/api/pitch": 1_000_000, "/api/social": 1_000_000}
 
 
 @app.middleware("http")
@@ -51,9 +54,10 @@ async def local_only(request: Request, call_next):
         if request.headers.get("content-type", "").split(";")[0] != "application/json":
             return JSONResponse({"error": {"code": "json_required", "message": "Send JSON input."}}, status_code=415)
         body = bytearray()
+        limit = REQUEST_LIMITS.get(request.url.path, 32_000)
         async for chunk in request.stream():
             body.extend(chunk)
-            if len(body) > 32_000:
+            if len(body) > limit:
                 return JSONResponse({"error": {"code": "input_too_large", "message": "Input is too large."}}, status_code=413)
         request._body = bytes(body)
     response = await call_next(request)
@@ -92,9 +96,40 @@ async def pitch(request: PitchInput):
     return await run_generation(request, generator.generate)
 
 
+@app.post("/api/session/validate")
+def validate_session(request: dict):
+    try:
+        return sessions.validate_file(request)
+    except ValueError as exc:
+        # Do not echo private saved input through Pydantic's input field.
+        raise HTTPException(422, "Invalid save file: check version, structure and source references.") from exc
+
+
 @app.post("/api/social")
 async def social_pitch(request: SocialInput):
     return await run_generation(request, social.generate)
+
+
+@app.post("/api/git/inspect")
+def inspect_git(request: git_import.InspectInput):
+    return git_read(git_import.inspect, request)
+
+
+@app.post("/api/git/preview")
+def preview_git(request: git_import.PreviewInput):
+    return git_read(git_import.preview, request)
+
+
+def git_read(function, request):
+    try:
+        return function(request)
+    except generator.GenerationError as exc:
+        return JSONResponse({"error": {"code": exc.code, "message": exc.message}}, status_code=exc.status)
+
+
+@app.post("/api/git/facts")
+async def extract_git_facts(request: git_import.ExtractInput):
+    return await run_generation(request, git_import.extract)
 
 
 @app.get("/api/fact-packs/{pack_id}")

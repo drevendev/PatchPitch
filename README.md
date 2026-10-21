@@ -42,8 +42,8 @@ exact original CTA only if it is still present there. Media notes stay outside
 per-post clipboard text and appear separately in the whole-thread Markdown.
 
 Drafts for different products/releases/formats stay in this tab's memory.
-A close/refresh warning is best effort; it does not save or restore a session.
-Copy plain text or download recognizable UTF-8 Markdown files before leaving.
+A close/refresh warning is best effort. Use **Download session** to keep and
+restore work, or export plain text/UTF-8 Markdown for publishing.
 Nothing is posted to X and there are no platform credentials or cloud fallbacks.
 
 The project author accepted the three edited pilot texts and the application.
@@ -105,6 +105,84 @@ top_k 64. It needs more memory than a small 4B model. Earlier Gemma 3 runs and t
 limitations are retained in the local evidence. A different model can be selected
 through `PATCHPITCH_MODEL`; a valid schema does not guarantee equal writing quality.
 
+A Russian walkthrough and validation record is available in
+[Сессии и DevLog из Git](docs/sessions-git-devlogs.md).
+
+## Save and open local work
+
+Open **Save and open**. **Download session** saves a versioned JSON file with the
+current input and fact selection, source snapshots, every format's current edits,
+X order/media notes, original generation records, unfinished Git review (selected
+files, diff snapshots and edited fact candidates) and manual publication markers.
+**Open session JSON** validates the entire file before replacing this tab, asks
+before replacing nonempty work, restores exact text and does not run inference.
+The restored selection requires review before another generation.
+
+**Download product profile** contains only product name/description, audience and
+CTA. Applying a profile keeps release notes and existing drafts, clears the
+release-specific media brief and requires a new context review. Profiles do not
+carry old release facts into a new release.
+
+Files are explicit and local; there is no autosave, browser database or cloud
+sync. A session can contain private source text, local repository controls and
+model responses: keep it private. Save files are limited to 4 MB, 100 current
+format variants and 200 generation records. Invalid/version-mismatched files do
+not replace the current work. A standalone Generation record JSON is diagnostic
+evidence, not a session file.
+
+Rejected inputs (including HTTP 422 attempts) remain saveable as original failure
+records. The replacement/unload guard also covers unfinished Git-only reviews;
+the browser warning is best effort and does not save work automatically.
+
+## Write a DevLog from recent commits
+
+1. Open **DevLog from Git** and enter a **local repository root**. Choose recent
+   commits (1–30), an explicit base/head range, or a saved manual-publication
+   baseline. An optional repository-relative path prefix narrows the file scope.
+2. Click **Inspect Git range**. Inspect exact resolved SHA values, commit subjects,
+   dirty-tree disclosure and every omitted file. Recent mode finds a first-parent
+   baseline; the resulting range includes merged commits, with facts based on the
+   net diff rather than duplicate merge subjects. Uncommitted edits are excluded.
+3. Explicitly select eligible files and click **Review selected diffs**. Read the
+   displayed patches and confirm you may use them. No model call has occurred.
+4. Click **Suggest facts with local Gemma**. One request proposes factual notes
+   with diff IDs and implemented/fix/refactor/uncertain labels. Inspect each
+   cited diff, edit the notes and select the ones you want. Commit subjects and
+   model labels are not proof of behavior or successful tests.
+5. Click **Use selected facts for DevLog**. Review the product/audience and chosen
+   notes in the normal editor, confirm the selection, then write a Devlog. This
+   is a separate explicit model request. Git inputs use **Development progress**:
+   committed code is not automatically called released, deployed or available.
+6. Edit, inspect sources, download the session and export Markdown. Publish in
+   DEV, itch.io, X or another editor **manually**.
+7. Only after actual publication, use **Record a manual publication** for the
+   displayed Git draft with its real URL. Download the session to retain this
+   repository's published head. Generation, export and failures never advance
+   that marker. The next import can use **Since recorded manual publication**.
+
+For PatchPitch itself, a useful reproducible range is `f5baf58..6f84004` with
+`patchpitch/generator.py`, `patchpitch/static/generation-records.js` and
+`patchpitch/static/social-editor.js` selected. It describes generation records on
+main, not a new public Release. The historical hand-prepared Idle Fantasy Shop
+fixture remains available as a separate input.
+
+The first importer supports local SHA-1 repositories, ancestor ranges of at most
+50 commits and at most 200 changed paths. Choose at most 12 text files, 6 KB of
+diff per file and 24 KB total. Oversized inputs fail before inference; omitted
+binary/generated/dependency/sensitive filenames are disclosed. Symlinks,
+submodules and non-UTF-8 inputs are unsupported. A filename/credential check is
+an aid, not a guarantee: inspect the selected code for private material yourself.
+The full selected review and original model response can be downloaded with
+**Download Git review JSON**; the current session also retains the last import
+record. A restored Git review keeps your candidate edits and selection, while
+requiring a new explicit diff confirmation before another extraction. Nothing is
+posted or sent to a hosted model.
+
+Git is invoked with fixed argument lists, bounded output/time and external diff,
+textconv, hooks and filesystem monitoring disabled. The importer does not change
+checkout, run project code/builds, fetch, clone or push. A partial selection is
+marked partial; facts from unselected files never enter the extraction request.
+
 ## From facts to a final edit
 
 1. Add the product, audience and 1–15 short change notes (6,000 characters total).
@@ -141,7 +219,7 @@ or edit/add your own tags in Markdown.
 
 The latest generated draft for each format stays in this browser tab's memory,
 including manual edits and tag removals. Use the generated-format buttons to
-switch between them. Refreshing the page clears them. A new request locks the
+switch between them. Download a session before refresh to restore them later. A new request locks the
 editor until success or failure; failure keeps the previous draft and edits.
 Generating over an edited draft of the same format requires confirmation.
 
@@ -158,7 +236,8 @@ include the current draft snapshot when that draft is still available. Original
 API responses and manual edits stay separate; edited text is not automatically
 revalidated. Records may contain private input and model text. They are not
 automatically written to disk, browser storage or telemetry, and are lost when the
-tab closes or refreshes. The unload warning remains best effort.
+tab closes or refreshes unless included in an explicitly downloaded session.
+The unload warning remains best effort.
 
 An optional writing sample helps retain the maker's voice. The first three selected
 notes lead the announcement; remaining topics appear in a compact secondary section.
@@ -179,7 +258,8 @@ Markdown. Mobile uses normal vertical page flow. See THIRD_PARTY_NOTICES.md.
 Fantasy Shop 0.11.1 → 0.12 code patch (`e83ddda` → `c4389af`), with an internal
 delivery note excluded. File references are recorded in
 `examples/idle-fantasy-shop.provenance.json`. This is a human-prepared factual
-summary of a real patch, not an automatic Git importer. The published devlog is
+summary of a real patch prepared before the new Git workflow; it is not a live
+import of the game repository. The published devlog is
 used only for comparison; none of its prose enters this case. A short tone brief comes from the game’s in-game item descriptions, with separate provenance.
 It loads input, then asks you to run real generation.
 Other examples are labelled public documentation or fictional products.
