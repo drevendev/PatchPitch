@@ -1,5 +1,7 @@
 "use strict";
 
+const saveFileBytes=32_000_000;
+
 const sessionFields=["product","description","audience","release","voice","cta","changes","format","style","intent","writing-goal"];
 
 function downloadJSON(value,filename){
@@ -29,6 +31,10 @@ async function saveFile(kind){
   try{
     const value=kind==="session"?sessionSnapshot():{kind:"patchpitch_profile",schema_version:1,
       product:{name:$("product").value,description:$("description").value},audience:$("audience").value,cta_text:$("cta").value};
+    // Check the actual pretty-printed download, not only the compact request.
+    // Otherwise a successful Save can produce a file that Open rejects.
+    if(new TextEncoder().encode(JSON.stringify(value,null,2)+"\n").length>saveFileBytes)
+      throw new Error("Save files must be at most 32 MB. Download the Git review or generation records separately to keep this work.");
     const checked=await jsonRequest("/api/session/validate",value);
     const name=exportName({context:{product:$("product").value,release_label:kind},presentation:{format:kind}}).replace(/\.md$/,".json");
     downloadJSON(checked,name);
@@ -41,7 +47,7 @@ async function openFile(file,kind){
   if(busy||!file)return;
   setBusy(true);error("");
   try{
-    if(file.size>4_000_000)throw new Error("Save files must be at most 4 MB.");
+    if(file.size>saveFileBytes)throw new Error("Save files must be at most 32 MB.");
     const value=JSON.parse(await file.text());
     if(value.kind!==`patchpitch_${kind}`)throw new Error(`Choose a PatchPitch ${kind} file.`);
     const checked=await jsonRequest("/api/session/validate",value);

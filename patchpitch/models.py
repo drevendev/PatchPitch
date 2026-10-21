@@ -25,7 +25,7 @@ class SourceReference(StrictModel):
     api_id: Annotated[str, StringConstraints(pattern=r"^C[0-9]{2}$")]
     stable_id: Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,39}$")]
     source_url: Annotated[str, StringConstraints(max_length=500)] = ""
-    source_ref: Annotated[str, StringConstraints(max_length=600)] = ""
+    source_ref: Annotated[str, StringConstraints(max_length=2000)] = ""
 
     @model_validator(mode="after")
     def safe_url(self):

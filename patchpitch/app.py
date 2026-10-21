@@ -36,7 +36,7 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 generation_lock = threading.Lock()
 # Provenance and current-thread context are outside the model's fact budget, but
 # can exceed the original 32 KB transport cap within their existing field limits.
-REQUEST_LIMITS = {"/api/session/validate": 4_000_000, "/api/pitch": 1_000_000, "/api/social": 1_000_000}
+REQUEST_LIMITS = {"/api/session/validate": sessions.SAVE_FILE_BYTES, "/api/pitch": 1_000_000, "/api/social": 1_000_000}
 
 
 @app.middleware("http")

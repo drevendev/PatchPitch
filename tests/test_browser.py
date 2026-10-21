@@ -1,6 +1,7 @@
 """MOCK browser tests; never evidence of actual Gemma generation."""
 import json
 import os
+import socket
 import subprocess
 import sys
 import time
@@ -15,14 +16,21 @@ os.environ.setdefault("PLAYWRIGHT_BROWSERS_PATH",str(ROOT/".tools"/"browsers"))
 
 @pytest.fixture(scope="module")
 def ui_url():
-    process=subprocess.Popen([sys.executable,"-m","uvicorn","patchpitch.app:app","--host","127.0.0.1","--port","8765"],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+    # Separate test runs must not borrow and later lose another run's server.
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    url=f"http://127.0.0.1:{port}"
+    process=subprocess.Popen([sys.executable,"-m","uvicorn","patchpitch.app:app","--host","127.0.0.1","--port",str(port)],cwd=ROOT,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
     try:
         for _ in range(60):
+            if process.poll() is not None:
+                pytest.fail("Test server exited before it became ready")
             try:
-                with urllib.request.urlopen("http://127.0.0.1:8765/",timeout=1): break
+                with urllib.request.urlopen(url,timeout=1): break
             except OSError: time.sleep(.1)
         else: pytest.fail("Test server did not start")
-        yield "http://127.0.0.1:8765"
+        yield url
     finally:
         process.terminate();process.wait(timeout=10)
 

@@ -125,10 +125,12 @@ carry old release facts into a new release.
 
 Files are explicit and local; there is no autosave, browser database or cloud
 sync. A session can contain private source text, local repository controls and
-model responses: keep it private. Save files are limited to 4 MB, 100 current
+model responses: keep it private. Save files are limited to 32 MB, 100 current
 format variants and 200 generation records. Invalid/version-mismatched files do
 not replace the current work. A standalone Generation record JSON is diagnostic
 evidence, not a session file.
+The actual formatted JSON download is checked before saving: an over-budget
+session stays in the tab, with a clear error instead of an unusable save file.
 
 Rejected inputs (including HTTP 422 attempts) remain saveable as original failure
 records. The replacement/unload guard also covers unfinished Git-only reviews;
@@ -145,10 +147,16 @@ the browser warning is best effort and does not save work automatically.
    net diff rather than duplicate merge subjects. Uncommitted edits are excluded.
 3. Explicitly select eligible files and click **Review selected diffs**. Read the
    displayed patches and confirm you may use them. No model call has occurred.
-4. Click **Suggest facts with local Gemma**. One request proposes factual notes
-   with diff IDs and implemented/fix/refactor/uncertain labels. Inspect each
-   cited diff, edit the notes and select the ones you want. Commit subjects and
-   model labels are not proof of behavior or successful tests.
+4. Review the displayed parts and request count, then click **Suggest facts with
+   local Gemma**. Large diffs are split without clipping and processed in bounded,
+   sequential requests. Progress is visible. **Stop after current request** keeps
+   completed batches; a failed batch is never retried automatically. Download the
+   session to continue later with **Continue remaining batches**, after confirming
+   the restored diffs. Earlier candidate edits and original responses stay intact.
+   Re-inspecting the same committed selection restores those edits and choices,
+   even after Save/Open while the visible diff preview is invalidated.
+   Inspect cited parts, remove duplicate/uncertain claims and explicitly select
+   up to 15 facts. Commit subjects and model labels do not prove behavior or tests.
 5. Click **Use selected facts for DevLog**. Review the product/audience and chosen
    notes in the normal editor, confirm the selection, then write a Devlog. This
    is a separate explicit model request. Git inputs use **Development progress**:
@@ -167,15 +175,23 @@ main, not a new public Release. The historical hand-prepared Idle Fantasy Shop
 fixture remains available as a separate input.
 
 The first importer supports local SHA-1 repositories, ancestor ranges of at most
-50 commits and at most 200 changed paths. Choose at most 12 text files, 6 KB of
-diff per file and 24 KB total. Oversized inputs fail before inference; omitted
+50 commits and at most 200 changed paths. Choose at most 12 text files, 128 KB of
+diff per file and 192 KB total. Fragments are at most 6 KB; model batches are at
+most 12 KB of serialized evidence, with at most 64 parts and 24 requests per
+review. Exact UTF-8 bytes are preserved, including long lines. Fragment labels
+show file, part and byte range; continuing hunks remain explicitly partial.
+Git extraction reserves a 24,576-token context for dense code and model output.
+All parts must finish before applying candidates to a DevLog. Only the selected
+1–15 facts (at most 6,000 characters) go to the writer; the full candidate pool
+and processing checkpoints stay in the session. Oversized inputs fail before inference; omitted
 binary/generated/dependency/sensitive filenames are disclosed. Symlinks,
 submodules and non-UTF-8 inputs are unsupported. A filename/credential check is
 an aid, not a guarantee: inspect the selected code for private material yourself.
 The full selected review and original model response can be downloaded with
 **Download Git review JSON**; the current session also retains the last import
-record. A restored Git review keeps your candidate edits and selection, while
-requiring a new explicit diff confirmation before another extraction. Nothing is
+record, including accepted/failed batch attempts. Older session files remain
+openable. A restored review keeps candidate edits and selection, while requiring
+a new explicit diff confirmation before another extraction. Nothing is
 posted or sent to a hosted model.
 
 Git is invoked with fixed argument lists, bounded output/time and external diff,

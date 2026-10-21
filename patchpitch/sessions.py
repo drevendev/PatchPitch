@@ -1,6 +1,5 @@
 """Validate explicit local save files. No server storage or model calls."""
 import json
-import hashlib
 import math
 from datetime import datetime
 from typing import Annotated, Any, Literal
@@ -10,6 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_vali
 from .models import Draft, PitchInput, PostDraft, Product, SocialInput, SourceContext, SourceReference
 from .provenance import source_snapshot
 from .validation import blocks
+from . import git_chunks
+
+SAVE_FILE_BYTES = 32_000_000
 
 
 class FileModel(BaseModel):
@@ -277,12 +279,30 @@ class GitEvidence(FileModel):
     id: Annotated[str, StringConstraints(pattern=r"^D[0-9]{2}$")]
     path: Annotated[str, StringConstraints(max_length=300)]
     diff: Annotated[str, StringConstraints(max_length=6200)]
+    part: int | None = Field(default=None, ge=1, le=git_chunks.MAX_CHUNKS)
+    parts: int | None = Field(default=None, ge=2, le=git_chunks.MAX_CHUNKS)
+    start_byte: int | None = Field(default=None, ge=0, le=git_chunks.FILE_BYTES)
+    end_byte: int | None = Field(default=None, ge=1, le=git_chunks.FILE_BYTES)
+    hunk_header: Annotated[str, StringConstraints(max_length=120)] | None = None
+
+
+class GitBatch(FileModel):
+    index: int = Field(ge=0, lt=git_chunks.MAX_BATCHES)
+    evidence_ids: list[Annotated[str, StringConstraints(pattern=r"^D[0-9]{2}$")]] = Field(min_length=1, max_length=git_chunks.MAX_CHUNKS)
+    bytes: int = Field(ge=1, le=git_chunks.BATCH_BYTES)
+
+
+class GitChunking(FileModel):
+    version: Literal[1]
+    batches: list[GitBatch] = Field(min_length=1, max_length=git_chunks.MAX_BATCHES)
+    total_bytes: int = Field(ge=1, le=git_chunks.TOTAL_BYTES)
 
 
 class GitPreview(FileModel):
     source_context: SourceContext
-    evidence: list[GitEvidence] = Field(min_length=1, max_length=12)
+    evidence: list[GitEvidence] = Field(min_length=1, max_length=git_chunks.MAX_CHUNKS)
     preview_sha256: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+    chunking: GitChunking | None = None
 
 
 class ReviewedCandidate(FileModel):
@@ -291,17 +311,85 @@ class ReviewedCandidate(FileModel):
     include: bool
     evidence_ids: list[Annotated[str, StringConstraints(pattern=r"^D[0-9]{2}$")]] = Field(min_length=1, max_length=4)
     kind: Literal["implemented", "fix", "refactor", "uncertain"]
+    batch_index: int | None = Field(default=None, ge=0, lt=git_chunks.MAX_BATCHES)
+
+
+class GitBatchAttempt(FileModel):
+    batch_index: int = Field(ge=0, lt=git_chunks.MAX_BATCHES)
+    status: Literal["accepted", "failed"]
+    response: dict[str, Any] | None
+    error: dict[str, Any] | None
+
+
+class GitRun(FileModel):
+    schema_version: Literal[2]
+    kind: Literal["patchpitch_git_review"]
+    status: Literal["in_progress", "complete", "partial", "failed", "stopped"]
+    source_context: SourceContext
+    evidence: list[GitEvidence] = Field(min_length=1, max_length=git_chunks.MAX_CHUNKS)
+    preview_sha256: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+    chunking: GitChunking
+    attempts: list[GitBatchAttempt] = Field(max_length=96)
+    # Preserve editable candidates while controls/file selection invalidate the
+    # visible preview. They can be reattached only to the exact original hash.
+    candidate_edits: list[ReviewedCandidate] | None = Field(default=None, max_length=git_chunks.MAX_BATCHES*git_chunks.FACTS_PER_BATCH)
+
+    def original_facts(self):
+        from .git_import import CandidateDraft
+        evidence = [e.model_dump(exclude_unset=True) for e in self.evidence]
+        plan = self.chunking.model_dump()
+        git_chunks.validate_chunks(evidence, list(dict.fromkeys(e["path"] for e in evidence)), plan)
+        if git_chunks.preview_hash(self.source_context.base, self.source_context.head, evidence, plan, self.source_context.repository_id) != self.preview_sha256:
+            raise ValueError("Original Git run fingerprint mismatch.")
+        result, next_batch = [], 0
+        for attempt in self.attempts:
+            if attempt.batch_index != next_batch or next_batch >= len(plan["batches"]):
+                raise ValueError("Invalid Git batch checkpoint order.")
+            if attempt.status == "failed":
+                if not attempt.error or not isinstance(attempt.error.get("message"), str):
+                    raise ValueError("Failed Git batches need their original error.")
+                continue
+            response = attempt.response
+            batch = plan["batches"][next_batch]
+            expected = {"index": next_batch, "count": len(plan["batches"]), "evidence_ids": batch["evidence_ids"]}
+            if (attempt.error is not None or not response or response.get("batch") != expected
+                    or response.get("preview_sha256") != self.preview_sha256
+                    or response.get("evidence") != [e for e in evidence if e["id"] in batch["evidence_ids"]]):
+                raise ValueError("Git batch response differs from the reviewed selection.")
+            if any(response["source_context"].get(key) != getattr(self.source_context, key) for key in ("repository_id", "base", "head")):
+                raise ValueError("Git batch repository or commit range mismatch.")
+            draft = CandidateDraft.model_validate({"facts": response["facts"]})
+            raw = response["raw_response"]
+            if raw.get("done") is not True or raw.get("done_reason") == "length":
+                raise ValueError("Accepted Git batch needs a finished original response.")
+            original = CandidateDraft.model_validate_json(raw["message"]["content"])
+            if original != draft or sum(len(f.text) for f in draft.facts) > 6000:
+                raise ValueError("Original Git batch facts mismatch.")
+            for fact in draft.facts:
+                if len(fact.evidence_ids) != len(set(fact.evidence_ids)) or not set(fact.evidence_ids) <= set(batch["evidence_ids"]):
+                    raise ValueError("Git batch cites an unprocessed fragment.")
+                result.append({**fact.model_dump(), "batch_index": next_batch})
+            next_batch += 1
+        if (self.status == "complete") != (next_batch == len(plan["batches"])):
+            raise ValueError("Git run completion does not match its accepted batches.")
+        if self.candidate_edits is not None:
+            cached = [{k: getattr(f, k) for k in ("text", "kind", "evidence_ids", "batch_index")} for f in self.candidate_edits]
+            if cached != result:
+                raise ValueError("Cached candidate edits differ from their original batch responses.")
+        return result
 
 
 class GitReview(FileModel):
     inspection: GitInspection | None
     preview: GitPreview | None
-    facts: list[ReviewedCandidate] | None = Field(max_length=15)
+    facts: list[ReviewedCandidate] | None = Field(max_length=git_chunks.MAX_BATCHES*git_chunks.FACTS_PER_BATCH)
     record: dict[str, Any] | None
     selected_files: list[Annotated[str, StringConstraints(max_length=300)]] = Field(max_length=12)
 
     @model_validator(mode="after")
     def consistent(self):
+        run = GitRun.model_validate(self.record) if self.record and self.record.get("schema_version") == 2 else None
+        originals = run.original_facts() if run else None
         if not self.inspection:
             if self.preview or self.facts or self.selected_files:
                 raise ValueError("An unfinished Git review needs its inspected range.")
@@ -316,21 +404,30 @@ class GitReview(FileModel):
         context = self.preview.source_context
         if (context.base, context.head, context.repository_id) != (self.inspection.base, self.inspection.head, self.inspection.repository_id):
             raise ValueError("Git review range mismatch.")
-        if [e.path for e in self.preview.evidence] != self.selected_files:
+        if list(dict.fromkeys(e.path for e in self.preview.evidence)) != self.selected_files:
             raise ValueError("Git evidence and selected files differ.")
         ids = [e.id for e in self.preview.evidence]
         if ids != [f"D{i:02}" for i in range(1, len(ids)+1)]:
             raise ValueError("Invalid diff identities.")
-        evidence = [e.model_dump() for e in self.preview.evidence]
-        if sum(len(e.diff.encode("utf-8")) for e in self.preview.evidence) > 24_000:
-            raise ValueError("Saved diff budget exceeded.")
-        fingerprint = {"base": context.base, "head": context.head, "evidence": evidence}
-        expected = hashlib.sha256(json.dumps(fingerprint, sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+        evidence = [e.model_dump(exclude_unset=True) for e in self.preview.evidence]
+        plan = self.preview.chunking.model_dump() if self.preview.chunking else None
+        if plan:
+            git_chunks.validate_chunks(evidence, self.selected_files, plan)
+        elif ([e.path for e in self.preview.evidence] != self.selected_files or len(evidence) > 12
+                or sum(len(e.diff.encode("utf-8")) for e in self.preview.evidence) > 24_000 or any("part" in e for e in evidence)):
+            raise ValueError("Invalid legacy diff budget or chunk metadata.")
+        expected = git_chunks.preview_hash(context.base, context.head, evidence, plan, context.repository_id)
         if expected != self.preview.preview_sha256:
             raise ValueError("Saved diff fingerprint mismatch.")
         for fact in self.facts or []:
             if len(fact.evidence_ids) != len(set(fact.evidence_ids)) or not set(fact.evidence_ids) <= set(ids):
                 raise ValueError("Fact candidate cites an absent diff.")
+        if run and run.preview_sha256 == self.preview.preview_sha256:
+            current = [{k: getattr(f, k) for k in ("text", "kind", "evidence_ids", "batch_index")} for f in self.facts or []]
+            if current != originals:
+                raise ValueError("Reviewed candidates differ from their original batch responses.")
+        elif any(f.batch_index is not None for f in self.facts or []):
+            raise ValueError("Chunked candidates need their matching original run.")
         return self
 
 

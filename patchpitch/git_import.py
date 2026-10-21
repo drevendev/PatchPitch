@@ -15,13 +15,14 @@ from typing import Annotated, Literal
 from pydantic import Field, StringConstraints, ValidationError, model_validator
 
 from . import generator
+from . import git_chunks
 from .models import SourceContext, StrictModel
 
 SHA = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{40}$")]
 BaseSHA = Annotated[str, StringConstraints(pattern=r"^(?:[0-9a-f]{40})?$")]
 FilePath = Annotated[str, StringConstraints(min_length=1, max_length=300)]
-MAX_FILE_BYTES = 6000
-MAX_DIFF_BYTES = 24_000
+MAX_FILE_BYTES = git_chunks.FILE_BYTES
+MAX_DIFF_BYTES = git_chunks.TOTAL_BYTES
 TEXT_EXTENSIONS = {".py", ".js", ".ts", ".jsx", ".tsx", ".json", ".md", ".txt", ".html", ".css",
     ".yml", ".yaml", ".toml", ".rs", ".go", ".cs", ".c", ".cpp", ".h", ".hpp", ".sql", ".sh",
     ".ps1", ".xml", ".ini", ".cfg", ".svelte", ".vue", ".rb", ".java", ".kt", ".swift", ".gd"}
@@ -47,6 +48,7 @@ class PreviewInput(StrictModel):
 class ExtractInput(PreviewInput):
     reviewed: bool
     preview_sha256: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
+    batch_index: int = Field(default=0, ge=0, lt=git_chunks.MAX_BATCHES)
 
     @model_validator(mode="after")
     def reviewed_selection(self):
@@ -62,7 +64,7 @@ class Candidate(StrictModel):
 
 
 class CandidateDraft(StrictModel):
-    facts: list[Candidate] = Field(min_length=1, max_length=15)
+    facts: list[Candidate] = Field(max_length=git_chunks.FACTS_PER_BATCH)
 
 
 def problem(message, code="git_input", status=422):
@@ -160,8 +162,6 @@ def exclusion(path, added, removed, prefix):
         return "Generated or dependency file"
     if added == "-" or removed == "-":
         return "Binary file"
-    if int(added) + int(removed) > 500:
-        return "Too many changed lines for one fact pass"
     if PurePosixPath(name).suffix not in TEXT_EXTENSIONS and name not in {"dockerfile", "makefile", "license"}:
         return "Unsupported file type"
     return ""
@@ -229,7 +229,7 @@ def preview(request):
     if len(set(request.files)) != len(request.files) or not set(request.files) <= eligible:
         raise problem("Select unique eligible files from this exact range.")
     evidence, total = [], 0
-    for i, path in enumerate(request.files, 1):
+    for path in request.files:
         relative_path(path)
         for tree in (base, head):
             if tree:
@@ -240,11 +240,12 @@ def preview(request):
             raw, _ = git(root, ["diff", "--no-ext-diff", "--no-textconv", "--no-renames", "--unified=2", base, head, "--", path], limit=MAX_FILE_BYTES)
         else:
             # Empty-tree baseline: read final blobs, never follow working-tree symlinks.
-            raw, _ = git(root, ["show", head + ":" + path], limit=MAX_FILE_BYTES)
-            raw = b"New file at root baseline:\n" + raw
+            prefix = b"New file at root baseline:\n"
+            raw, _ = git(root, ["show", head + ":" + path], limit=MAX_FILE_BYTES-len(prefix))
+            raw = prefix + raw
         total += len(raw)
         if total > MAX_DIFF_BYTES:
-            raise problem("Selected diffs exceed 24 KB. Choose fewer files; no inference was requested.", "git_too_large")
+            raise problem("Selected diffs exceed 192 KB. Narrow the range or selection; no inference was requested.", "git_too_large")
         try:
             patch = raw.decode("utf-8")
         except UnicodeError as exc:
@@ -252,15 +253,19 @@ def preview(request):
         secret = r"-----BEGIN [A-Z ]*PRIVATE KEY-----|\b(?:ghp_|github_pat_|sk-)[A-Za-z0-9_\-]{20,}|\bAKIA[A-Z0-9]{16}|(?i:(?:password|secret|api_key|access_token)\s*[:=]\s*['\"][^'\"\s]{12,})"
         if "\x00" in patch or re.search(secret, patch):
             raise problem("A selected diff contains binary data or a possible credential. Deselect that file; nothing was sent to the model.")
-        evidence.append({"id": f"D{i:02}", "path": path, "diff": patch})
+        # Scan the entire file before splitting, so credentials cannot straddle a
+        # fragment boundary or reach an earlier batch before a later rejection.
+        evidence.extend(git_chunks.evidence_for(path, patch, len(evidence)+1))
     context = SourceContext(kind="git", repository=details["repository"], repository_id=details["repository_id"], base=base, head=head,
         branch=details["branch"], commit_count=details["commit_count"], worktree_dirty=details["worktree_dirty"],
         omitted_files=[item["path"][:500] for item in details["files"] if item["path"] not in request.files],
         partial=len(request.files) != len(details["files"]))
-    # Do not include dirty/branch in the digest: they do not alter these immutable diffs.
-    fingerprint = {"base": base, "head": head, "evidence": evidence}
+    try:
+        chunking = git_chunks.batch_plan(evidence)
+    except ValueError as exc:
+        raise problem(str(exc), "git_too_large") from exc
     return {"source_context": context.model_dump(), "evidence": evidence,
-        "preview_sha256": hashlib.sha256(json.dumps(fingerprint, sort_keys=True, ensure_ascii=False).encode()).hexdigest()}
+        "chunking": chunking, "preview_sha256": git_chunks.preview_hash(base, head, evidence, chunking, context.repository_id)}
 
 
 PROMPT = """Extract a small set of English development facts from the selected Git diffs.
@@ -271,7 +276,13 @@ benchmark, adoption or personal experience. Tests in a diff are tests added/chan
 not proof they passed. Preserve counts, conditions, negation and limits. Distinguish
 fixes, refactors and uncertain inferences. Prefer a few useful facts over one per file.
 Do not infer user-visible features from refactors. Do not invent intent or benefits.
-Use concise factual sentences, at most 6000 characters across all fact text.
+This request contains only one batch from the reviewed selection. Evidence may
+be raw fragments of a larger file or hunk, and may start/end inside a long line.
+Byte ranges and preceding hunk headers are orientation, not additional code.
+Do not assume a fragment contains the whole function or feature; mark uncertainty.
+Return an empty facts array if this batch supports no useful factual claims.
+Use at most 8 concise facts and 6000 characters across all fact text. Do not
+duplicate the same claim for multiple fragments; cite the supporting fragment IDs.
 """
 
 
@@ -279,11 +290,20 @@ def extract(request):
     bundle = preview(request)
     if bundle["preview_sha256"] != request.preview_sha256:
         raise problem("The reviewed selection differs. Review these exact diffs again.")
+    batches = bundle["chunking"]["batches"]
+    if request.batch_index >= len(batches):
+        raise problem("Select a batch from the reviewed diff plan.")
+    batch = batches[request.batch_index]
+    evidence = [e for e in bundle["evidence"] if e["id"] in batch["evidence_ids"]]
     schema = CandidateDraft.model_json_schema()
-    schema["$defs"]["Candidate"]["properties"]["evidence_ids"]["items"] = {"type": "string", "enum": [e["id"] for e in bundle["evidence"]]}
-    prompt = PROMPT + "\nOUTPUT SCHEMA:\n" + json.dumps(schema) + "\nUNTRUSTED DIFFS:\n" + json.dumps(bundle["evidence"], ensure_ascii=False)
+    schema["$defs"]["Candidate"]["properties"]["evidence_ids"]["items"] = {"type": "string", "enum": batch["evidence_ids"]}
+    scope = ("Net committed patch between the reviewed base and head." if request.base else
+             "Empty-tree baseline: the first fragment of each file has a New file prefix; later fragments continue that same committed file content.")
+    prompt = PROMPT + "\nSCOPE: " + scope + "\nOUTPUT SCHEMA:\n" + json.dumps(schema) + "\nUNTRUSTED DIFFS:\n" + json.dumps(evidence, ensure_ascii=False)
     payload = {"model": generator.MODEL, "stream": False, "format": schema,
-        "messages": [{"role": "user", "content": prompt}], "options": {**generator.OPTIONS, "num_predict": 4500}, "keep_alive": "10m"}
+        # A 12 KB code batch can tokenize much more densely than ordinary prose.
+        # Reserve space for every input byte, schema and the output token budget.
+        "messages": [{"role": "user", "content": prompt}], "options": {**generator.OPTIONS, "num_ctx": 24_576, "num_predict": 4500}, "keep_alive": "10m"}
     if generator.MODEL.startswith("gemma4"):
         payload["think"] = False
     raw, started = None, time.perf_counter()
@@ -292,7 +312,7 @@ def extract(request):
         if not isinstance(raw, dict) or raw.get("done") is not True or raw.get("done_reason") == "length":
             raise generator.GenerationError("incomplete_response", "The model did not finish proposing facts. Previous work is unchanged.")
         draft = CandidateDraft.model_validate_json(raw["message"]["content"])
-        allowed = {e["id"] for e in bundle["evidence"]}
+        allowed = set(batch["evidence_ids"])
         if sum(len(f.text) for f in draft.facts) > 6000 or any(len(set(f.evidence_ids)) != len(f.evidence_ids) or not set(f.evidence_ids) <= allowed for f in draft.facts):
             raise ValueError("Invalid candidate source references or text budget.")
     except (ValidationError, ValueError, KeyError, TypeError, AttributeError) as exc:
@@ -302,6 +322,9 @@ def extract(request):
     except generator.GenerationError as exc:
         exc.evidence = generator.generation_evidence(raw, payload, time.perf_counter() - started)
         raise
-    return {**bundle, "facts": draft.model_dump()["facts"], "raw_response": raw,
-        "meta": generator.generation_evidence(raw, payload, time.perf_counter() - started),
+    meta = generator.generation_evidence(raw, payload, time.perf_counter() - started)
+    meta.pop("raw_response")  # Keep one exact original, rather than duplicate it.
+    return {"source_context": bundle["source_context"], "evidence": evidence, "preview_sha256": bundle["preview_sha256"],
+        "batch": {"index": request.batch_index, "count": len(batches), "evidence_ids": batch["evidence_ids"]},
+        "facts": draft.model_dump()["facts"], "raw_response": raw, "meta": meta,
         "review_required": True, "warning": "Model-proposed facts need your review against the selected diffs. No release or test execution has been verified."}

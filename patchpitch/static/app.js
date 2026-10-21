@@ -139,7 +139,7 @@ function setBusy(value) {
   for (const control of document.querySelectorAll("#edit,#editor,#tag-chips button,#saved-drafts button,#record-publication,#published-url")) control.disabled=value;
   for (const control of document.querySelectorAll("#load-pack,#fact-pack,#pack-file,#social-posts button,#social-posts textarea,#social-posts input")) control.disabled=value || control.dataset.boundaryDisabled==="true";
   for (const control of document.querySelectorAll("#session-tools input,#session-tools button,#git-tools input,#git-tools button,#git-tools select,#git-tools textarea")) control.disabled=value;
-  if(!value && typeof syncGitButtons === "function") syncGitButtons();
+  if(typeof syncGitButtons === "function") syncGitButtons();
   if(!value && isSocial($("format").value)) $("auto-tags").disabled=true;
 }
 $("generate").addEventListener("click",()=>{closeDisclosure($("selection-panel"));});
