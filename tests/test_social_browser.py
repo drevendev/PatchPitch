@@ -106,6 +106,11 @@ def test_regeneration_locks_and_preserves_other_edits(ui_url,monkeypatch,failure
         expect(page.locator("#text-P01")).to_have_value("Keep this exact first edit.")
         if failure:expect(page.locator("#text-P03")).to_have_value("Keep third unless replacement succeeds.")
         else:assert page.locator("#text-P03").input_value().startswith("PatchPitch keeps")
+        assert page.locator("#record-choice option").count()==2
+        if failure:
+            expect(page.locator("#record-outcome")).to_contain_text("Failed")
+            assert "rewrite P03" in page.locator("#record-choice option:checked").inner_text()
+            assert page.locator("#record-raw").inner_text()=="No model response was available for this attempt."
         assert len(calls)==2
         browser.close()
 

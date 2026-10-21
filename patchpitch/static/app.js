@@ -65,7 +65,9 @@ async function jsonRequest(path, body) {
     const extraVoice=Array.isArray(data.detail) && data.detail.some(item=>item.type==="extra_forbidden" && item.loc?.some(part=>["voice_reference","format","style","auto_tags"].includes(part)));
     if(extraVoice) throw new Error("The local server is running an older version. Restart PatchPitch, then try again; your input is still here.");
     const fields=Array.isArray(data.detail) ? data.detail.map(item=>`${item.loc?.slice(1).join(" / ") || "Input"}: ${item.msg}`).join(" · ") : "";
-    throw new Error(data.error?.message || (typeof data.detail === "string" ? data.detail : fields || "Review the selected changes and confirmation."));
+    const failure = new Error(data.error?.message || (typeof data.detail === "string" ? data.detail : fields || "Review the selected changes and confirmation."));
+    failure.code=data.error?.code || "request_failed";failure.httpStatus=response.status;failure.evidence=data.evidence ?? null;
+    throw failure;
   }
   return data;
 }
@@ -145,7 +147,7 @@ function saveCurrent() {
     if(!unloadProtected){window.addEventListener("beforeunload",warnUnload);unloadProtected=true;}
   }
 }
-function warnUnload(event){if(!drafts.size)return;event.preventDefault();event.returnValue=true;}
+function warnUnload(event){if(!drafts.size && !generationRecords.length)return;event.preventDefault();event.returnValue=true;}
 function contextKey(format,context={product:$("product").value,release_label:$("release").value}){return JSON.stringify([context.product,context.release_label,format]);}
 function characterCount() {
   const limit=result?.presentation?.limit;
@@ -225,6 +227,7 @@ function render(data, saved=null) {
 }
 $("pitch-form").addEventListener("submit", async event => {
   event.preventDefault(); if (busy) return;
+  let submittedBody=null, started=null;
   setBusy(true); error("");
   try {
     await prepare();
@@ -235,10 +238,11 @@ $("pitch-form").addEventListener("submit", async event => {
     const social=isSocial(body.format);
     if(social){Object.assign(body,{auto_tags:false,intent:$("intent").value,post_count:Number($("post-count").value)});if(packContext)for(const k of ["source_references","pack_id","pack_version","pack_sha256"])body[k]=packContext[k];}
     setBusy(true); const start = performance.now(); $("status").textContent="Writing with local Gemma… 0.0s";
+    submittedBody=body;started=start;
     const timer = setInterval(() => $("status").textContent=`Writing with local Gemma… ${((performance.now()-start)/1000).toFixed(1)}s`, 200);
-    try {const data = await jsonRequest(social?"/api/social":"/api/pitch",body);data.media_note=$("media-note").value;render(data);$("status").textContent="Your draft is ready to review. Nothing has been published.";}
+    try {const data = await jsonRequest(social?"/api/social":"/api/pitch",body);rememberGeneration(body,{response:data},start);data.media_note=$("media-note").value;render(data);$("status").textContent="Your draft is ready to review. Nothing has been published.";}
     finally {clearInterval(timer);}
-  } catch (e) {error(e.message);$("status").textContent="Your input and any previous draft are still here.";}
+  } catch (e) {if(submittedBody)rememberGeneration(submittedBody,{error:e},started);error(e.message);$("status").textContent="Your input and any previous draft are still here. Review this attempt below or retry manually.";}
   finally {setBusy(false);}
 });
 function openEditor() {

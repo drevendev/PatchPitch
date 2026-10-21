@@ -180,6 +180,22 @@ def test_transport_drops_unknown_envelope_headers_and_attachments():
     assert secret.encode() not in sent.serialize()
 
 
+def test_rejected_response_evidence_is_local_and_never_in_telemetry(monkeypatch,input_data,draft_data):
+    enable()
+    secret="PRIVATE_REJECTED_RESPONSE_SENTINEL"
+    draft_data["intro"]["text"]="C01: "+secret+"."
+    raw={"done":True,"model":"MOCK","message":{"content":json.dumps(draft_data)}}
+    monkeypatch.setattr(generator,"ollama_json",lambda *args,**kwargs:raw)
+    with pytest.raises(generator.GenerationError) as exc:
+        generator.generate(PitchInput.model_validate(input_data))
+    assert secret in exc.value.evidence["raw_response"]["message"]["content"]
+    telemetry.flush()
+    serialized=b"\n".join(e.serialize() for e in RecordingTransport.envelopes)
+    assert secret.encode() not in serialized
+    assert input_data["changes"][0]["text"].encode() not in serialized
+    assert "evidence" not in json.dumps(events())
+
+
 def test_outage_and_sdk_failure_do_not_change_success_or_business_error(monkeypatch,input_data,draft_data):
     enable();RecordingTransport.fail=True;mock_model(monkeypatch,draft_data)
     assert generator.generate(PitchInput.model_validate(input_data))["raw_draft"]==draft_data

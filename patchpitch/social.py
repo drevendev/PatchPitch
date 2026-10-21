@@ -73,6 +73,7 @@ def build_payload(request: SocialInput):
 def generate(request: SocialInput):
     raw = None
     payload = None
+    start = time.perf_counter()
     with telemetry.generation(request.format) as observation:
         try:
             payload = build_payload(request)
@@ -111,11 +112,8 @@ def generate(request: SocialInput):
                 result["meta"]["sentry_trace_id"] = observation.trace_id
             return result
         except generator.GenerationError as exc:
-            if raw is not None:
-                exc.evidence = {"raw_response": raw, "configured_model": generator.MODEL,
-                    "returned_model": generator.response_identity(raw), "options": payload["options"],
-                    "prompt_sha256": hashlib.sha256(payload["messages"][0]["content"].encode()).hexdigest(),
-                    "request_sha256": hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest()}
+            if payload is not None:
+                exc.evidence = generator.generation_evidence(raw, payload, time.perf_counter() - start)
             observation.error(exc.code)
             raise
         except Exception:

@@ -104,8 +104,10 @@ async function regeneratePost(id){
   // Keep a CTA only on the card where the author currently has that exact CTA.
   request.cta_text=request.cta_text&&post.text.endsWith("\n\n"+request.cta_text)?request.cta_text:"";
   setBusy(true);error("");$("status").textContent=`Rewriting ${id} with local Gemma…`;
+  const started=performance.now();
   try{
     const data=await jsonRequest("/api/social",request);
+    rememberGeneration(request,{response:data},started);
     if(result!==previousResult)throw new Error("Draft changed; the new response was not applied.");
     const replacement=data.draft.posts[0];
     Object.assign(post,{...replacement,edited:false});
@@ -114,6 +116,6 @@ async function regeneratePost(id){
     result.omitted_source_ids=Object.keys(result.sources).filter(id=>!used.has(id));
     for(const warning of data.warnings){const text=`${id} regeneration: ${warning}`;(result.regeneration_warnings ||= []).push(text);const p=document.createElement("p");p.textContent=text;$("warnings").append(p);}
     edited=true;renderSocialCards();saveSocial();$("status").textContent=`${id} regenerated. Other cards unchanged. Review the new wording and verify in X.`;
-  }catch(e){error(e.message);$("status").textContent="All previous posts, media notes and edits remain unchanged.";}
+  }catch(e){rememberGeneration(request,{error:e},started);error(e.message);$("status").textContent="All previous posts, media notes and edits remain unchanged. Review this attempt below or retry manually.";}
   finally{setBusy(false);renderSocialCards();$("text-"+id)?.focus();}
 }

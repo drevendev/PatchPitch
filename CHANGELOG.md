@@ -1,5 +1,19 @@
 # PatchPitch local development log
 
+## 2026-10-21 — 0.2.0 stabilization (owner review pending)
+
+- Retain original accepted and rejected responses in Devlog, Community and Short,
+  matching X diagnostics; include input snapshots on successful legacy responses.
+- Add session-only Generation records for all formats and single-card rewrites,
+  with reasons, model identity, explicit JSON Copy/Download and separate edited
+  snapshots. A later success retains earlier failed attempts.
+- Preserve the current input and edited draft on rejection; no automatic retry,
+  truncation, repair or filesystem/browser-storage persistence.
+- Add regressions for all five formats, overflow, malformed/incomplete output,
+  transport failure, safe response display, retry, exports and telemetry privacy.
+- PR #44 was merged on 2026-10-20; post-merge CI passed 177 tests. This follow-up
+  remains separate from Release, Pages, X and DEV publication.
+
 ## 2026-10-20 — 0.2.0 Social Field Test candidate (PR review)
 
 - Added versioned PatchPitch/Idle Fantasy Shop fact packs, strict JSON import,
@@ -21,8 +35,8 @@
 - Staged a version-labelled Pages example page for review, preserving the
   accepted historical article and recording. Deployment remains manual.
 
-The owner authorized PR preparation and exact-head CI. No merge, GitHub Release/tag,
-Pages deployment or social publication is included. Full sessions (#11), feedback (#36/#37),
+The owner subsequently authorized merging PR #44; it is on main. No GitHub Release/tag,
+Pages deployment or social publication followed. Full sessions (#11), feedback (#36/#37),
 Git import and a hosted live model remain later work.
 
 ## 2026-10-19 — formats, styles and auto tags
