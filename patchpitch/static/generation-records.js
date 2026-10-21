@@ -5,7 +5,7 @@ const generationRecords = [];
 
 function rememberGeneration(request, {response=null, error=null}, started) {
   const record = {
-    schema_version:1, id:`A${String(generationRecords.length+1).padStart(2,"0")}`,
+    schema_version:1, id:`A${String(Math.max(0,...generationRecords.map(r=>Number(r.id.slice(1))))+1).padStart(2,"0")}`,
     recorded_at:new Date().toISOString(), status:error?"failed":"accepted",
     client_elapsed_seconds:Number(((performance.now()-started)/1000).toFixed(3)),
     input_snapshot:structuredClone(request), response:response?structuredClone(response):null,
@@ -14,9 +14,7 @@ function rememberGeneration(request, {response=null, error=null}, started) {
   };
   generationRecords.push(record);
   if(response)response.local_record_id=record.id;
-  const option=document.createElement("option");option.value=record.id;
-  option.textContent=`${record.id} · ${request.product.name} · ${formatNames[request.format]}${request.operation==="regenerate"?` · rewrite ${request.target_post_id}`:""} · ${record.status}`;
-  $("record-choice").append(option);$("record-choice").value=record.id;
+  appendRecordOption(record);$("record-choice").value=record.id;
   $("generation-records").hidden=false;showGenerationRecord();
   if(error){closeDisclosure($("generation-records"));$("generation-records").open=true;$("generation-records").querySelector("summary").setAttribute("aria-expanded","true");}
   if(!unloadProtected){window.addEventListener("beforeunload",warnUnload);unloadProtected=true;}
@@ -59,3 +57,10 @@ $("download-record").addEventListener("click",()=>{
   const link=document.createElement("a");link.href=url;link.download=filename;link.click();
   setTimeout(()=>URL.revokeObjectURL(url),1000);$("status").textContent="Generation record downloaded locally. Nothing has been published.";
 });
+
+function appendRecordOption(record){
+  const request=record.input_snapshot;
+  const option=document.createElement("option");option.value=record.id;
+  option.textContent=`${record.id} · ${request.product.name} · ${formatNames[request.format]}${request.operation==="regenerate"?` · rewrite ${request.target_post_id}`:""} · ${record.status}`;
+  $("record-choice").append(option);
+}

@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 from pydantic import ValidationError
 from . import generator, telemetry
+from .provenance import source_snapshot, source_context
 from .formats import STYLES
 from .models import PostDraft, SocialDraft, SocialInput
 from .social_count import estimate
@@ -43,10 +44,13 @@ def build_payload(request: SocialInput):
     allowed = [c.id for c in request.changes if c.include]
     post_schema["source_ids"].update(items={"type": "string", "enum": allowed}, uniqueItems=True, maxItems=len(allowed))
     reserve = estimate(request.cta_text)["characters"] + 2 if request.cta_text else 0
-    instructions = (PROMPT + "\nINTENT: " + INTENTS[request.intent] + "\nSTYLE: " + STYLES[request.style]["instruction"]
+    intent = "Explain committed development progress without claiming release or availability." if request.writing_goal == "development" and request.intent == "release" else INTENTS[request.intent]
+    instructions = (PROMPT + "\nINTENT: " + intent + "\nSTYLE: " + STYLES[request.style]["instruction"]
         + f"\nReturn exactly {count} post(s). Aim for 150–200 conservative weighted characters per post. "
         + f"Last/target post text budget: {max(1, 240-reserve)}. Final 280 limit includes the separately appended CTA. "
         + "Use fewer words; keep a complete useful thought. Write the story as prose, not a checklist.")
+    if request.writing_goal == "development":
+        instructions += "\nDEVELOPMENT PROGRESS: These are committed changes, not proof of release or deployment. Do not announce them as shipped or available to users, or invent test results."
     guidance = guidance_requirements(request)
     if guidance:
         instructions += ("\nMANDATORY CONTENT: " + ", ".join(label for label, _ in guidance)
@@ -91,18 +95,15 @@ def generate(request: SocialInput):
                 warnings.append("Returned model differs from configured model; review evidence before comparing runs.")
             selected = {c.id: c.text for c in request.changes if c.include}
             used = {s for p in posts for s in p["source_ids"]}
-            refs = {r.api_id: r.model_dump() for r in request.source_references}
             result = {"draft": {"posts": posts}, "raw_draft": raw_draft, "raw_response": raw,
                 "input_snapshot": request.model_dump(), "sources": selected,
-                "source_snapshot": [{"api_id": c.id, "stable_id": refs.get(c.id, {}).get("stable_id", c.id),
-                    "text": c.text, "include": c.include, "source_url": refs.get(c.id, {}).get("source_url", ""),
-                    "source_ref": refs.get(c.id, {}).get("source_ref", "")} for c in request.changes],
+                "source_snapshot": source_snapshot(request),
                 "source_map": [{"block": p["id"], "source_ids": p["source_ids"]} for p in posts],
                 "warnings": list(dict.fromkeys(warnings)), "omitted_source_ids": sorted(set(selected)-used),
                 "presentation": {"format": request.format, "format_label": "X Thread" if request.format == "x_thread" else "X Single",
                     "style": request.style, "style_label": STYLES[request.style]["label"], "limit": 280, "estimated": True, "cta_text": request.cta_text},
                 "context": {"product": request.product.name, "release_label": request.release_label,
-                    "generated_at": datetime.now(timezone.utc).isoformat(), "pack_id": request.pack_id, "pack_version": request.pack_version, "pack_sha256": request.pack_sha256},
+                    "generated_at": datetime.now(timezone.utc).isoformat(), "pack_id": request.pack_id, "pack_version": request.pack_version, "pack_sha256": request.pack_sha256, **source_context(request)},
                 "meta": {"mode": "LIVE_MODEL", "model": returned, "configured_model": generator.MODEL, "returned_model": returned,
                     "elapsed_seconds": elapsed, "options": payload["options"], "thinking_enabled": payload.get("think", False),
                     "prompt_sha256": hashlib.sha256(payload["messages"][0]["content"].encode()).hexdigest(),

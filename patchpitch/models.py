@@ -21,6 +21,36 @@ class Change(StrictModel):
     include: bool
 
 
+class SourceReference(StrictModel):
+    api_id: Annotated[str, StringConstraints(pattern=r"^C[0-9]{2}$")]
+    stable_id: Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,39}$")]
+    source_url: Annotated[str, StringConstraints(max_length=500)] = ""
+    source_ref: Annotated[str, StringConstraints(max_length=600)] = ""
+
+    @model_validator(mode="after")
+    def safe_url(self):
+        from urllib.parse import urlsplit
+        if self.source_url:
+            parsed = urlsplit(self.source_url)
+            if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
+                raise ValueError("Source URLs must be ordinary http(s) links without credentials.")
+        return self
+
+
+class SourceContext(StrictModel):
+    kind: Literal["git"]
+    repository: Annotated[str, StringConstraints(min_length=1, max_length=100)]
+    repository_id: Annotated[str, StringConstraints(pattern=r"^(?:[0-9a-f]{64})?$")] = ""
+    base: Annotated[str, StringConstraints(pattern=r"^(?:[0-9a-f]{40})?$")]
+    head: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{40}$")]
+    branch: Annotated[str, StringConstraints(max_length=200)] = ""
+    commit_count: int = Field(ge=1, le=50)
+    worktree_dirty: bool
+    status: Literal["committed"] = "committed"
+    omitted_files: list[Annotated[str, StringConstraints(max_length=500)]] = Field(default_factory=list, max_length=200)
+    partial: bool = False
+
+
 class PitchInput(StrictModel):
     product: Product
     audience: Annotated[str, StringConstraints(min_length=1, max_length=180)]
@@ -32,6 +62,13 @@ class PitchInput(StrictModel):
     style: Literal["warm", "clear", "lively"] = "warm"
     auto_tags: bool = False
     confirmed: bool
+    source_references: list[SourceReference] = Field(default_factory=list, max_length=15)
+    pack_id: Annotated[str, StringConstraints(max_length=80)] = ""
+    pack_version: Annotated[str, StringConstraints(max_length=40)] = ""
+    pack_sha256: Annotated[str, StringConstraints(pattern=r"^(?:[0-9a-f]{64})?$")] = ""
+    context_overrides: list[Literal["product", "description", "audience", "release_label", "voice_reference", "cta_text"]] = Field(default_factory=list, max_length=6)
+    source_context: SourceContext | None = None
+    writing_goal: Literal["release", "development"] = "release"
 
     @model_validator(mode="after")
     def check_changes(self):
@@ -41,6 +78,12 @@ class PitchInput(StrictModel):
             raise ValueError("Use at most 6,000 characters of change notes.")
         if [c.id for c in self.changes] != [f"C{i:02}" for i in range(1, len(self.changes) + 1)]:
             raise ValueError("Change IDs must be assigned in order, starting at C01.")
+        refs = [r.api_id for r in self.source_references]
+        stable = [r.stable_id for r in self.source_references]
+        if refs and (refs != [c.id for c in self.changes] or len(stable) != len(set(stable))):
+            raise ValueError("Source references must map every change, in order, to a unique stable ID.")
+        if self.source_context and self.writing_goal != "development":
+            raise ValueError("Git sources establish committed code, not a published release. Use Development progress.")
         if not any(c.include for c in self.changes):
             raise ValueError("Select at least one change.")
         if self.format == "short" and len(self.cta_text) > 180:
@@ -71,10 +114,17 @@ class TitleBlock(Block):
 class Draft(StrictModel):
     title: TitleBlock
     intro: Block
-    highlights: list[Block] = Field(min_length=1, max_length=3)
+    highlights: list[Block] = Field(min_length=0, max_length=3)
     details: list[Block] = Field(default_factory=list, max_length=4)
     note: Block | None = None
     hashtags: list[Annotated[str, StringConstraints(pattern=r"^#[A-Za-z][A-Za-z0-9]{0,39}$")]] = Field(default_factory=list, max_length=3)
+
+
+    @model_validator(mode="after")
+    def has_topics(self):
+        if not self.highlights and self.note is None:
+            raise ValueError("A Devlog needs a selected topic or an important note.")
+        return self
 
 
 class PostDraft(StrictModel):
@@ -86,20 +136,6 @@ class PostDraft(StrictModel):
 PITCH_SCHEMA = Draft.model_json_schema()
 
 
-class SourceReference(StrictModel):
-    api_id: Annotated[str, StringConstraints(pattern=r"^C[0-9]{2}$")]
-    stable_id: Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_-]{0,39}$")]
-    source_url: Annotated[str, StringConstraints(max_length=500)] = ""
-    source_ref: Annotated[str, StringConstraints(max_length=600)] = ""
-
-    @model_validator(mode="after")
-    def safe_url(self):
-        from urllib.parse import urlsplit
-        if self.source_url:
-            parsed = urlsplit(self.source_url)
-            if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username or parsed.password:
-                raise ValueError("Source URLs must be ordinary http(s) links without credentials.")
-        return self
 
 
 class SocialPost(StrictModel):
@@ -123,10 +159,6 @@ class SocialInput(PitchInput):
     operation: Literal["generate", "regenerate"] = "generate"
     target_post_id: Annotated[str, StringConstraints(pattern=r"^P0[1-7]$")] | None = None
     thread_context: list[ContextPost] = Field(default_factory=list, max_length=7)
-    source_references: list[SourceReference] = Field(default_factory=list, max_length=15)
-    pack_id: Annotated[str, StringConstraints(max_length=80)] = ""
-    pack_version: Annotated[str, StringConstraints(max_length=40)] = ""
-    pack_sha256: Annotated[str, StringConstraints(pattern=r"^(?:[0-9a-f]{64})?$")] = ""
 
     @model_validator(mode="after")
     def check_social(self):
@@ -145,8 +177,4 @@ class SocialInput(PitchInput):
                 raise ValueError("Thread context cites an unknown or excluded fact.")
         elif self.thread_context or self.target_post_id:
             raise ValueError("Thread context is only used for an explicit single-post regeneration.")
-        refs = [r.api_id for r in self.source_references]
-        stable = [r.stable_id for r in self.source_references]
-        if refs and (refs != [c.id for c in self.changes] or len(stable) != len(set(stable))):
-            raise ValueError("Source references must map every change, in order, to a unique stable ID.")
         return self

@@ -1,5 +1,26 @@
 # PatchPitch local development log
 
+## Unreleased — sessions and Git DevLogs
+
+- Share immutable source snapshots and original fact-pack identity across all five
+  formats; disclose campaign-context overrides and require renewed review (#46/#66).
+- Refresh current X source maps/omissions after rewrites and label previous
+  warnings as historical without changing original generation records (#47).
+- Handle guidance-only Devlogs with an explicit empty highlight outline (#65).
+- Distinguish release variants and clear input media briefs when loading facts (#67/#68).
+- Add explicit versioned local session/profile Download/Open. Restore exact edits,
+  X order/media, source selection and original failed/accepted attempts atomically;
+  invalid imports preserve current work (#11).
+- Add local Git range inspection, bounded selected-diff preview and one explicit
+  Gemma request for fact candidates, followed by human selection and the existing
+  Devlog editor. Retain commit/file provenance and committed-only scope (#8).
+- Add optional local receipts for actual manual publications. Only an explicit
+  receipt advances the saved repository baseline; no publication integration.
+- Review corrections: save rejected-input attempts as original evidence, protect
+  unfinished Git reviews when closing/replacing a tab, and allow bounded draft
+  requests to carry the full supported provenance without a transport rejection.
+
+
 ## 2026-10-21 — 0.2.0 stabilization (owner review pending)
 
 - Retain original accepted and rejected responses in Devlog, Community and Short,
