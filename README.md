@@ -414,3 +414,6 @@ resize defect; it is not a general visual-quality guarantee.
 `python scripts/verify_audio.py` checks decoded audio for clipping, a surviving
 closing music tail, fade to silence and room after the last spoken line. It does
 not substitute for listening to the finished demo.
+
+Publication follow-up: [23 October article closeout](docs/publication-closeout-2026-10-23.md).
+Deferred work: [project backlog](docs/backlog.md).
