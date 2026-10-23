@@ -1,5 +1,15 @@
 # PatchPitch local development log
 
+## Unreleased — first-run documentation
+
+- README starts with a first run that needs no model: the recorded demo, then a
+  clean clone that loads a reviewed fact pack without Ollama and shows the exact
+  message Generate gives while Ollama is stopped. Model setup follows.
+- The 0.2.0 Social Field Test details and live-evidence steps moved, unchanged, to
+  `docs/social-field-test.md`. The prepared-workspace launcher moved to the demo
+  tooling section, and the Python requirement reads the same everywhere (3.11+).
+- Add CONTRIBUTING.md and SECURITY.md (private vulnerability reporting).
+
 ## Unreleased — large Git diffs
 
 - Split large committed diffs into lossless UTF-8 parts with file/part/byte
