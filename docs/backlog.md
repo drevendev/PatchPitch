@@ -1,8 +1,14 @@
 # Backlog
 
-Updated 24 October 2026 after [0.3.0 release closeout](release-closeout-0.3.0-2026-10-24.md), the X URL-counting correction [#91](https://github.com/drevendev/PatchPitch/issues/91), and the CSP-safe browser test fix below. **0.3.0 is released.** The open items below are follow-up work, not open gates for the documented 12B/600-second configuration. No next-release version or work schedule is assigned.
+Updated 24 October 2026 after [0.3.0 release closeout](release-closeout-0.3.0-2026-10-24.md), the X URL-counting correction [#91](https://github.com/drevendev/PatchPitch/issues/91), and the CSP-safe browser test fix below. **0.3.0 is released.** The open items below are follow-up work, not open gates for the documented 12B/600-second configuration. The next functional release is proposed as 0.4.0; no work schedule is assigned.
 
 New announcements remain on hold at the owner's request. The earlier DEV/X article cycle is closed; Telegram was intentionally skipped. PyPI distribution has not been requested and is not an unfinished step of this GitHub release.
+
+## Proposed 0.4.0 — editorial article pipeline
+
+Status: [specification prepared](0.4.0-spec.md), implementation not started. The specification audits the existing 0.3.0/main capabilities before defining the new work: an editable outline, Quillgrain section writing and revision, full preview with real media, DEV draft delivery and three linked X announcements. It defines revision/conflict handling, headless/UI parity and live editorial acceptance.
+
+Existing X URL-counting and CSP test corrections below are carried forward, not reimplemented. DEV inline video with sound/controls remains the separate deferred item below; local video preview does not close it. No release, publication or new hosting service is authorized by preparing this specification.
 
 ## DEV video with sound and controls
 
