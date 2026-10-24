@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "patchpitch"
-version = "0.3.0.dev0"
+version = "0.3.0rc1"
 description = "Local, source-backed writing for Telegram, X, DEV and GitHub"
 readme = "README.md"
 requires-python = ">=3.11"

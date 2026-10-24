@@ -78,7 +78,8 @@ The [0.3.0 specification](docs/0.3.0-spec.md) sets the next release priorities:
 Telegram, Twitter/X, DEV and GitHub; unattended CLI runs; exactly six evidence-backed
 hashtags per X post; integrated Quillgrain profiles; and preparing the release's
 own DEV article through PatchPitch. It defines planned behavior and acceptance
-criteria. The implementation is in development as `0.3.0.dev0`.
+criteria. The prepared candidate is `0.3.0rc1`; final 0.3.0 is not released. See the
+[candidate notes and acceptance record](docs/0.3.0-release-candidate.md).
 
 ## Run campaigns without UI
 
@@ -98,6 +99,8 @@ installs the studio server. New X campaigns require a dated observation catalog
 for six relevant tags per post. Quillgrain can compile a selected local pack;
 DEV draft delivery is a separate explicit command.
 
+The verified Linux CPU configuration uses `gemma4:12b` and
+`PATCHPITCH_TIMEOUT=600`; Gemma 3 4B failed this campaign.
 See [headless setup, scheduling, Git, tags, voice and exports](docs/headless.md).
 The [four-platform example](examples/headless/all-four.toml) includes an
 [observed X catalog and sampling notes](docs/x-catalog.md).

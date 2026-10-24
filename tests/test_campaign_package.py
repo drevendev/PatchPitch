@@ -21,7 +21,7 @@ def test_installed_package_has_no_ui_dependency_and_plans_outside_checkout(job_f
                             cwd=external, env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30)
     assert result.returncode == 0, result.stderr
     assert json.loads(result.stdout)["status"] == "planned"
-    probe = subprocess.run([sys.executable, "-c", "import patchpitch.campaigns,sys; assert 'fastapi' not in sys.modules; print(patchpitch.campaigns.__file__)"],
+    probe = subprocess.run([sys.executable, "-c", "import patchpitch.campaigns,sys; from importlib.metadata import version; assert patchpitch.__version__ == version('patchpitch'); assert 'fastapi' not in sys.modules; print(patchpitch.campaigns.__file__)"],
                            cwd=external, env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30)
     assert probe.returncode == 0 and str(installed) in probe.stdout
     assert (installed / "patchpitch/prompts/telegram-author-ru.txt").exists()

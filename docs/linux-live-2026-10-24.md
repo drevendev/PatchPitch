@@ -60,3 +60,5 @@ No new code defect blocking the tested 12B configuration was found. The 4B outpu
 The initial workflow configuration-only run `40079863718` failed before inference because a job-level environment value used the unavailable `runner` context; the corrected workflow used a Linux temporary model path. No model response was fabricated for that attempt.
 
 After collecting both experiments, the workflow was changed to manual-only with a 12B default and an explicit 4B comparison choice. This avoids starting model downloads on ordinary branch pushes. Evidence run IDs above refer to the earlier push-triggered experiment revisions.
+
+RC follow-up: this evidence branch has been integrated into main and `0.3.0rc1` metadata/facts/archive checks are prepared in the [candidate record](0.3.0-release-candidate.md). Earlier dev0/main state statements above describe the experiment boundary. Final release/tag remains held.

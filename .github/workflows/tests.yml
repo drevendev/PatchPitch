@@ -22,6 +22,45 @@ jobs:
       - run: python -m playwright install --with-deps chromium
       - run: python -m pytest -q
         # Browser/API tests are MOCK. LIVE_MODEL requires a separate local Ollama.
+  package:
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install build==1.6.1 setuptools==84.2.0 wheel==0.48.0
+      - name: Build wheel and source archive
+        run: python -m build --no-isolation
+      - name: Verify source archive test collection
+        run: |
+          python -m pip install -r requirements-dev.txt -r requirements-dev.lock
+          mkdir "$RUNNER_TEMP/source-smoke"
+          tar -xf dist/patchpitch-*.tar.gz -C "$RUNNER_TEMP/source-smoke"
+          cd "$RUNNER_TEMP/source-smoke"/patchpitch-*
+          python -m pytest --collect-only -q -rs
+      - name: Install wheel into an isolated environment
+        run: |
+          python -m venv "$RUNNER_TEMP/package-venv"
+          "$RUNNER_TEMP/package-venv/bin/python" -m pip install dist/patchpitch-*.whl
+      - name: Verify installed CLI without UI or model requests
+        run: |
+          cd "$RUNNER_TEMP"
+          "$RUNNER_TEMP/package-venv/bin/python" -c "import importlib.util as u; from importlib.metadata import version; import patchpitch, patchpitch.campaigns; assert patchpitch.__version__ == version('patchpitch'); assert u.find_spec('fastapi') is None; assert u.find_spec('uvicorn') is None; assert u.find_spec('playwright') is None"
+          "$RUNNER_TEMP/package-venv/bin/python" -m patchpitch run --job "$GITHUB_WORKSPACE/examples/headless/release-candidate.toml" --out "$RUNNER_TEMP/package-plan" --plan --json </dev/null
+          "$RUNNER_TEMP/package-venv/bin/patchpitch" schema --kind job --out "$RUNNER_TEMP/job-schema.json" --json </dev/null
+      - name: Record archive hashes
+        run: |
+          sha256sum dist/* > "$RUNNER_TEMP/SHA256SUMS"
+          mv "$RUNNER_TEMP/SHA256SUMS" dist/SHA256SUMS
+          git rev-parse HEAD > dist/SOURCE_COMMIT
+      - uses: actions/upload-artifact@v4
+        with:
+          name: patchpitch-candidate-${{ github.sha }}
+          path: dist/
+          retention-days: 14
   quillgrain:
     if: github.event.repository.private == false
     runs-on: ubuntu-latest

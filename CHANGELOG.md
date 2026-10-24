@@ -1,6 +1,6 @@
 # PatchPitch local development log
 
-## Unreleased — 0.3.0.dev0 unattended campaigns
+## Unreleased — 0.3.0rc1 candidate for 0.3.0
 
 - Add an installable Python CLI for strict JSON/TOML jobs, shared local generation,
   persistent run/attempt files, explicit resume and nonblocking process locks.
@@ -22,6 +22,9 @@
 - Reconcile uncertain DEV writes when the API omits AI disclosure, retaining the
   original outgoing payload and updating the same owned draft without duplicate POSTs.
 - Add a pinned Quillgrain integration CI job that fails on skipped checks.
+- Verify a real Linux four-platform run with gemma4:12b and explicit timeout=600;
+  record the rejected 4B comparison and retain all original evidence.
+- Prepare rc1 package metadata, refreshed candidate facts and wheel/source archives.
 - Add offline automation/API/browser/package tests and scheduling examples.
   Real-model quality, remote DEV draft verification and release publication remain
   separate checks; no public Release or platform publication is implied.
