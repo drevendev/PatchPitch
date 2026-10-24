@@ -1,6 +1,6 @@
 # Backlog
 
-Updated 24 October 2026 after [0.3.0 release closeout](release-closeout-0.3.0-2026-10-24.md). **0.3.0 is released.** The items below are follow-up work, not open gates for the documented 12B/600-second configuration. No next-release version or work schedule is assigned.
+Updated 24 October 2026 after [0.3.0 release closeout](release-closeout-0.3.0-2026-10-24.md) and the X URL-counting correction [#91](https://github.com/drevendev/PatchPitch/issues/91). **0.3.0 is released.** The open items below are follow-up work, not open gates for the documented 12B/600-second configuration. No next-release version or work schedule is assigned.
 
 New announcements remain on hold at the owner's request. The earlier DEV/X article cycle is closed; Telegram was intentionally skipped. PyPI distribution has not been requested and is not an unfinished step of this GitHub release.
 
@@ -45,6 +45,21 @@ Acceptance criteria:
 - Record actual outcome data before making effectiveness claims; do not substitute invented popularity scores. Any future public test posts require the owner's publication authorization.
 
 No recurring collection or posting automation is enabled. See the [catalog guide](x-catalog.md).
+
+## Completed after 0.3.0 — awaiting a future release
+
+### X URL counting and generation budget (#91)
+
+Status: completed in `main` by [9b21c80](https://github.com/drevendev/PatchPitch/commit/9b21c80e65b874b13a7d99af3bb4c9ed7efa238a); [#91](https://github.com/drevendev/PatchPitch/issues/91) is closed. This correction is unreleased; the published 0.3.0 tag and packages are unchanged.
+
+- CLI and studio count each recognized URL as 23 characters, including long DEV links, query strings and UTM parameters. The same rule applies to final validation and generation space reserved for the CTA and six selected hashtags, including `#DEVCommunity` when requested.
+- `x-estimate-v2` preserves historical responses, measurements and run snapshots. Current exports and editor validation use the corrected estimate.
+- Expected-count fixtures cover URL boundaries, punctuation, multiple URLs and Python/JavaScript parity. CLI/UI checks accept a fitting 280-character post and reject 281; six-tag generation budgets are covered.
+- [CI for the fix](https://github.com/drevendev/PatchPitch/actions/runs/40103922223) passed: 363 base tests with 3 expected optional-engine skips, 21 Quillgrain checks with no skips, and wheel/source builds with clean-install CLI verification.
+
+The three prepared DEV article announcements now estimate at **176 / 185 / 178**, rather than 248 / 257 / 250. A shorter visible URL is not needed to recover X's character budget. Short.io and click-tracking integration remain deferred; no shortener account or service was added.
+
+The extractor remains a bounded estimate: full twitter-text TLD/IDN and emoji conformance is not claimed. Unsupported or malformed URL candidates retain ordinary weight, and manual X preview remains required. Scope and historical-data handling: [X length guide](x-length.md).
 
 ## Closed with 0.3.0
 
