@@ -1,5 +1,11 @@
 # PatchPitch local development log
 
+## Unreleased — CSP-safe browser test waits
+
+- Replace string-evaluated Playwright polling with retrying locator assertions in
+  the delayed-regeneration test. Verify successful and failed regeneration under
+  the application's existing CSP, without allowing `unsafe-eval` or bypassing CSP.
+
 ## Unreleased — X URL counting (#91)
 
 - Count each recognized URL as 23 characters in CLI/UI validation and generation

@@ -158,7 +158,8 @@ def test_example_loading_and_generation_cannot_overlap(ui_url,input_data,draft_d
 
 @pytest.mark.parametrize("fails",[False,True])
 def test_delayed_regeneration_locks_editor_and_restores_it(ui_url,input_data,draft_data,fails):
-    from playwright.sync_api import sync_playwright
+    """Check both outcomes under the app's CSP without string-evaluated polling."""
+    from playwright.sync_api import sync_playwright,expect
     response={"draft":draft_data,"markdown":"# First\n\nOriginal.\n","warnings":[],"sources":{"C01":"A fact."},"source_map":[],"meta":{"model":"MOCK","elapsed_seconds":1.0}}
     pending=[];calls=[]
     with sync_playwright() as p:
@@ -169,18 +170,22 @@ def test_delayed_regeneration_locks_editor_and_restores_it(ui_url,input_data,dra
             if len(calls)==1:route.fulfill(json=response)
             else:pending.append(route)
         page.route("**/api/pitch",route_pitch)
-        page.goto(ui_url);page.locator("#example").click();page.locator("#confirmed").check();page.locator("#generate").click()
+        navigation=page.goto(ui_url)
+        policy=navigation.headers["content-security-policy"]
+        assert "script-src 'self'" in policy and "'unsafe-eval'" not in policy
+        page.locator("#example").click();page.locator("#confirmed").check();page.locator("#generate").click()
         page.locator("#result").wait_for(state="visible")
         page.locator("#edit").click();page.locator("#editor").fill("# My previous edit\n\nKeep this.\n")
         page.once("dialog",lambda dialog:dialog.accept());page.locator("#generate").click()
-        page.wait_for_function("document.getElementById('generate').disabled")
+        # Locator assertions retry without eval(), which the production CSP blocks.
+        expect(page.locator("#generate")).to_be_disabled()
         assert page.locator("#edit").is_disabled() and page.locator("#editor").is_disabled()
         assert page.locator("#format").is_disabled() and page.locator("#style").is_disabled()
         assert page.locator("#editor").input_value()=="# My previous edit\n\nKeep this.\n"
         assert len(pending)==1
         if fails:pending[0].fulfill(status=504,json={"error":{"code":"timeout","message":"MOCK timeout"}})
         else:pending[0].fulfill(json={**response,"markdown":"# Second\n\nNew draft.\n"})
-        page.wait_for_function("!document.getElementById('generate').disabled")
+        expect(page.locator("#generate")).to_be_enabled()
         assert page.locator("#edit").is_enabled() and page.locator("#editor").is_enabled()
         if fails:
             assert page.locator("#editor").input_value()=="# My previous edit\n\nKeep this.\n"
