@@ -72,14 +72,14 @@ through `PATCHPITCH_MODEL`; a valid schema does not guarantee equal writing qual
 A Russian walkthrough and validation record is available in
 [Сессии и DevLog из Git](docs/sessions-git-devlogs.md).
 
-## Next release specification
+## 0.3.0 release
 
-The [0.3.0 specification](docs/0.3.0-spec.md) sets the next release priorities:
+The [0.3.0 specification](docs/0.3.0-spec.md) defines this release:
 Telegram, Twitter/X, DEV and GitHub; unattended CLI runs; exactly six evidence-backed
 hashtags per X post; integrated Quillgrain profiles; and preparing the release's
 own DEV article through PatchPitch. It defines planned behavior and acceptance
-criteria. The prepared candidate is `0.3.0rc1`; final 0.3.0 is not released. See the
-[candidate notes and acceptance record](docs/0.3.0-release-candidate.md).
+criteria. Version `0.3.0` includes the verified headless workflow. See the
+[release notes and installation guidance](docs/releases/0.3.0.md).
 
 ## Run campaigns without UI
 

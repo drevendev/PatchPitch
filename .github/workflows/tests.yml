@@ -49,16 +49,16 @@ jobs:
         run: |
           cd "$RUNNER_TEMP"
           "$RUNNER_TEMP/package-venv/bin/python" -c "import importlib.util as u; from importlib.metadata import version; import patchpitch, patchpitch.campaigns; assert patchpitch.__version__ == version('patchpitch'); assert u.find_spec('fastapi') is None; assert u.find_spec('uvicorn') is None; assert u.find_spec('playwright') is None"
-          "$RUNNER_TEMP/package-venv/bin/python" -m patchpitch run --job "$GITHUB_WORKSPACE/examples/headless/release-candidate.toml" --out "$RUNNER_TEMP/package-plan" --plan --json </dev/null
+          "$RUNNER_TEMP/package-venv/bin/python" -m patchpitch run --job "$GITHUB_WORKSPACE/examples/headless/release.toml" --out "$RUNNER_TEMP/package-plan" --plan --json </dev/null
           "$RUNNER_TEMP/package-venv/bin/patchpitch" schema --kind job --out "$RUNNER_TEMP/job-schema.json" --json </dev/null
       - name: Record archive hashes
         run: |
-          sha256sum dist/* > "$RUNNER_TEMP/SHA256SUMS"
+          (cd dist && sha256sum *) > "$RUNNER_TEMP/SHA256SUMS"
           mv "$RUNNER_TEMP/SHA256SUMS" dist/SHA256SUMS
           git rev-parse HEAD > dist/SOURCE_COMMIT
       - uses: actions/upload-artifact@v4
         with:
-          name: patchpitch-candidate-${{ github.sha }}
+          name: patchpitch-dist-${{ github.sha }}
           path: dist/
           retention-days: 14
   quillgrain:

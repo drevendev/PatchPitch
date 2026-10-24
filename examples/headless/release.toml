@@ -1,0 +1,43 @@
+schema_version = "patchpitch.job/v1"
+campaign_id = "patchpitch-030-release"
+product_profile = "profile.json"
+writing_goal = "release"
+
+[source]
+kind = "reviewed_fact_pack"
+path = "release-facts.json"
+
+[execution]
+max_model_requests = 8
+inference_attempts_per_step = 1
+continue_other_targets_on_error = true
+
+[[targets]]
+id = "x-en"
+channel = "x"
+format = "x_single"
+language = "en"
+style = "clear"
+hashtag_policy = "x-six-v1"
+hashtag_catalog = "x-catalog-2026-10-22.json"
+
+[[targets]]
+id = "telegram-ru"
+channel = "telegram"
+format = "telegram"
+language = "ru"
+style = "clear"
+
+[[targets]]
+id = "dev-en"
+channel = "dev"
+format = "dev_article"
+language = "en"
+style = "clear"
+
+[[targets]]
+id = "github-en"
+channel = "github"
+format = "github_release_notes"
+language = "en"
+style = "clear"

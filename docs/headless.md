@@ -1,6 +1,6 @@
 # Automatic campaigns without a browser
 
-Available in the **0.3.0rc1 candidate**. Final 0.3.0 has not been released; the full release gates are in the [specification](0.3.0-spec.md).
+Available in **0.3.0**; the full release gates are in the [specification](0.3.0-spec.md).
 
 ## Install and run
 
@@ -136,4 +136,6 @@ python -m patchpitch run --job /absolute/checkout/examples/headless/all-four.tom
 
 Start the prepared local Ollama server and install the selected model explicitly beforehand. The optional `.github/workflows/linux-live.yml` acceptance harness provisions an ephemeral runner/model separately and saves public-input evidence; it is manual-only after the experiment to avoid downloading a multi-GB model on ordinary pushes. Generation never calls a publisher.
 
-The current reviewed candidate fact pack is `examples/headless/release-candidate-facts.json`; `release-candidate.toml` plans all four outputs from it. It records rc1 status and completed delivery/Linux evidence without implying a final release. Use `--plan --json` to inspect it without inference. The original `all-four.toml` inputs remain unchanged for reproduction of the recorded live experiments.
+The historical reviewed candidate fact pack is `examples/headless/release-candidate-facts.json`; `release-candidate.toml` plans all four outputs from it. It records rc1 status and completed delivery/Linux evidence without implying a final release. Use `--plan --json` to inspect it without inference. The original `all-four.toml` inputs remain unchanged for reproduction of the recorded live experiments.
+
+For 0.3.0 use `examples/headless/release-facts.json` and `release.toml`: they describe the final version and select reviewed released facts. The older candidate and live-experiment inputs remain immutable. Generating this job only writes local drafts; publishing still requires an explicit separate action. See the [0.3.0 release notes](releases/0.3.0.md).

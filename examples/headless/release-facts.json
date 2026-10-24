@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "id": "patchpitch-030-release",
+  "version": "0.3.0",
+  "product": {
+    "name": "PatchPitch",
+    "description": "A local writing workflow that turns selected development facts into drafts for Telegram, X, DEV and GitHub."
+  },
+  "audience": "Developers preparing announcements for their own projects",
+  "release_label": "0.3.0",
+  "facts": [
+    {
+      "id": "cli_jobs",
+      "text": "PatchPitch 0.3.0 is an open-source Python developer tool. Its non-interactive CLI automates local draft generation from JSON/TOML jobs with Ollama, without starting a browser or PatchPitch HTTP server.",
+      "include": true,
+      "kind": "released",
+      "source_ref": "LICENSE, patchpitch/cli.py, patchpitch/jobs.py, patchpitch/campaigns.py",
+      "limitations": "Ollama and an installed local model are prerequisites. The CLI prepares drafts; it does not publish platform announcements."
+    },
+    {
+      "id": "checkpoints",
+      "text": "Campaigns retain input snapshots, original model responses and failed attempts on disk. Explicit resume continues unfinished steps; successful steps and edited export files are preserved.",
+      "include": true,
+      "kind": "released",
+      "source_ref": "patchpitch/campaigns.py, patchpitch/run_store.py",
+      "limitations": "Changing source data or runtime uses a different run identity. Generation does not establish human editorial approval."
+    },
+    {
+      "id": "x_six_tags",
+      "text": "The new X path plans each post and selects exactly six tags from a user-supplied catalog with dated observations, topic terms and audience information. The application reserves their length before writing and validates the complete text.",
+      "include": true,
+      "kind": "released",
+      "source_ref": "patchpitch/hashtags.py, patchpitch/social.py",
+      "limitations": "Missing or stale evidence blocks X rather than inventing popular tags. Matching uses lexical rules and needs meaning review. Length remains a conservative estimate; verify in X."
+    },
+    {
+      "id": "quillgrain_local",
+      "text": "The optional Quillgrain integration can verify an existing bundle or compile an explicitly chosen local pack. Each request checks language, register and channel and keeps the exact voice snapshot.",
+      "include": true,
+      "kind": "released",
+      "source_ref": "patchpitch/voice.py, patchpitch/jobs.py",
+      "limitations": "The trusted Quillgrain 0.1.0rc3 engine must be installed separately. Structural compatibility is not proof of an authentic author voice."
+    },
+    {
+      "id": "platform_outputs",
+      "text": "The campaign runner produces Telegram posts, DEV articles and GitHub notes from selected facts. A separate explicit DEV adapter creates or updates a remote draft with published=false and retains a receipt.",
+      "include": true,
+      "kind": "released",
+      "source_ref": "patchpitch/longform.py, patchpitch/publishers/dev.py, patchpitch/campaign_export.py; docs/publication-closeout-2026-10-23.md; tests/test_campaign_delivery.py",
+      "limitations": "DEV draft delivery needs an API key and always sends published=false. A real account draft/update and separately authorized article publication were completed; unknown-response recovery has offline regression coverage. This candidate workflow does not publish anything."
+    },
+    {
+      "id": "exact_cli_example",
+      "text": "A real Ubuntu 24.04 headless run of the same inference code returned four accepted drafts with gemma4:12b in 1599.653 seconds using five model requests. Validation, session export and unchanged repeat/resume passed. The exact reproduction command for a prepared checkout is:\n```sh\nPATCHPITCH_MODEL=gemma4:12b PATCHPITCH_TIMEOUT=600 python -m patchpitch run --job examples/headless/all-four.toml --out-root artifacts/campaigns --json </dev/null\n```",
+      "include": true,
+      "kind": "released",
+      "source_ref": "docs/linux-live-2026-10-24.md; GitHub Actions run 40079916968",
+      "limitations": "This is one CPU observation of the pre-RC development version, not a benchmark or a fresh 0.3.0 inference run. DEV took 497.921 seconds, so this configuration needs timeout=600. Gemma 3 4B failed this campaign. The dated catalog needs review after 30 days.",
+      "source_url": "https://github.com/drevendev/PatchPitch/actions/runs/40079916968"
+    }
+  ]
+}
