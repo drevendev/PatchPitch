@@ -1,0 +1,19 @@
+{
+  "observed_at": "2026-10-24T13:23:20.577986+00:00",
+  "access_method": "web search indexed profile snippet; direct mirror open returned cache miss",
+  "source": "https://m.twstalker.com/thomas_sweet",
+  "author": "thomas_sweet",
+  "observation": "An indexed X-profile mirror shows the author sharing a DEV accessibility article with #DEVCommunity and a dev.to/thomas_sweet link.",
+  "sample_size": 1,
+  "relevant_posts": 1,
+  "relevant_authors": 1,
+  "engagements": null,
+  "clicks": null,
+  "limitations": [
+    "Mirror snippet not authenticated against live X; no individual status ID was exposed.",
+    "Historical topical-use sample; not a popularity or performance measurement.",
+    "Owner explicitly requested this community tag for a DEV article announcement."
+  ],
+  "corroboration": "https://bsky.app/profile/dev.to",
+  "corroboration_note": "DEV official profile itself uses #DEVCommunity; this supports community identity, not X-post counts."
+}

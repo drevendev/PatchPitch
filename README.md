@@ -13,6 +13,10 @@ the sources, edit and export Markdown. A small writing workflow with a human fin
 The hosted demo shows real recorded Gemma outputs; generation runs locally using
 the setup below.
 
+The unreleased [0.4.0 editorial workspace](docs/editorial.md) adds an editable article
+plan, Quillgrain section revisions, real-media previews, DEV drafts and linked X
+announcements. Open `/editorial` in the local studio or use `patchpitch editorial`.
+
 ## Try it
 
 **No install:** open the [recorded demo](https://drevendev.github.io/PatchPitch/).

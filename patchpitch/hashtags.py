@@ -78,7 +78,9 @@ class Catalog(StrictModel):
         return self
 
 
-def select(catalog, request, post, at=None):
+def select(catalog, request, post, at=None, *, count=6):
+    if type(count) is not int or not 1 <= count <= 6:
+        raise RunError("HASHTAG_POLICY", "Select between one and six evidenced tags.", 4)
     catalog = Catalog.model_validate(catalog) if isinstance(catalog, dict) else catalog
     at = at or datetime.now(timezone.utc)
     cited = " ".join(c.text for c in request.changes if c.include and c.id in post["source_ids"])
@@ -113,11 +115,11 @@ def select(catalog, request, post, at=None):
         ranked.append((score, canonical(candidate.tag), decision))
     ranked.sort(key=lambda item: item[1])
     ranked.sort(key=lambda item: item[0], reverse=True)
-    if len(ranked) < 6:
-        raise RunError("HASHTAGS_INSUFFICIENT_EVIDENCE", f"Post {post['id']} has {len(ranked)} eligible tags; six are required.", 4)
+    if len(ranked) < count:
+        raise RunError("HASHTAGS_INSUFFICIENT_EVIDENCE", f"Post {post['id']} has {len(ranked)} eligible tags; {count} are required.", 4)
     return {"post_id": post["id"], "topic": post["topic"], "source_ids": post["source_ids"],
-            "selected": [item[2] for item in ranked[:6]],
-            "rejected": rejected + [{"tag": item[2]["tag"], "reason": "lower_rank"} for item in ranked[6:]]}
+            "selected": [item[2] for item in ranked[:count]],
+            "rejected": rejected + [{"tag": item[2]["tag"], "reason": "lower_rank"} for item in ranked[count:]]}
 
 
 def validate_text(text, expected=None):
