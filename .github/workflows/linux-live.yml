@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      PATCHPITCH_MODEL: gemma4:12b
+      PATCHPITCH_MODEL: gemma3:4b
       PATCHPITCH_SENTRY_DSN: ''
       OLLAMA_HOST: 127.0.0.1:11434
       OLLAMA_MODELS: /tmp/patchpitch-live-models
