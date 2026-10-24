@@ -210,7 +210,7 @@ def check_document(doc, inputs):
         from .editorial_media import validate_asset
         validate_asset(asset, assets)
     from .editorial_render import body_markdown
-    if len(body_markdown(doc, inputs, public=False)) > 32000:
+    if max(len(body_markdown(doc, inputs, public=public)) for public in (False, True)) > 32000:
         raise RunError("ARTICLE_LENGTH", "The complete body exceeds 32000 characters.", 4)
 
 
@@ -226,28 +226,36 @@ def apply(work, value):
     mutation = parse(Mutation, value)
     root = Path(work).resolve()
     with FileLock(root / ".editorial.lock"):
-        root, manifest, doc, inputs = load(root)
-        previous = operation(manifest, mutation.operation_id, value)
-        if previous:
-            return previous["result"]
-        if mutation.expected_revision_id != doc.revision_id:
-            raise RunError("REVISION_CONFLICT", "The document changed; review the current revision before applying.")
-        original = doc.model_copy(deep=True)
-        for item in mutation.operations:
-            mutate(root, doc, inputs, item)
-        check_document(doc, inputs)
-        doc.parent_revision_id = original.revision_id
-        # Review-only operations may certify the current content; content edits always invalidate it.
-        if article_hash(original) != article_hash(doc):
-            doc.article_reviewed = False
-        result = {"status": "accepted", "operation_id": mutation.operation_id}
-        # Both commit and operation receipt are part of the one manifest switch.
-        doc.revision_id = ""
-        revision = "R" + digest(doc.model_dump())
-        result["revision_id"] = revision
-        manifest["operations"][mutation.operation_id] = {"request_sha256": digest(value), "result": result}
-        commit(root, manifest, doc)
-        return result
+        return apply_locked(root, value, mutation=mutation)
+
+
+def apply_locked(root, value, *, mutation=None, accepted_candidates=()):
+    """Internal transaction; the caller holds the workspace lock throughout."""
+    mutation = mutation or parse(Mutation, value)
+    root, manifest, doc, inputs = load(root)
+    previous = operation(manifest, mutation.operation_id, value)
+    if previous:
+        return previous["result"]
+    if mutation.expected_revision_id != doc.revision_id:
+        raise RunError("REVISION_CONFLICT", "The document changed; review the current revision before applying.")
+    original = doc.model_copy(deep=True)
+    for item in mutation.operations:
+        mutate(root, doc, inputs, item)
+    check_document(doc, inputs)
+    doc.parent_revision_id = original.revision_id
+    # Review-only operations may certify the current content; content edits always invalidate it.
+    if article_hash(original) != article_hash(doc):
+        doc.article_reviewed = False
+    result = {"status": "accepted", "operation_id": mutation.operation_id}
+    # Both commit and operation receipt are part of the one manifest switch.
+    doc.revision_id = ""
+    revision = "R" + digest(doc.model_dump())
+    result["revision_id"] = revision
+    manifest["operations"][mutation.operation_id] = {"request_sha256": digest(value), "result": result}
+    for candidate in accepted_candidates:
+        manifest.setdefault("accepted_candidates", {})[candidate] = {"operation_id": mutation.operation_id, "result": result}
+    commit(root, manifest, doc)
+    return result
 
 
 def mutate(root, doc, inputs, item):
@@ -275,8 +283,8 @@ def mutate(root, doc, inputs, item):
             section = current.get(p.id, Section(id=p.id, heading=p.heading))
             prior = next((s for s in doc.outline.sections if s.id == p.id), None) if doc.outline else None
             if prior is None or prior.model_dump() != p.model_dump():
-                if section.locked and section.heading != p.heading:
-                    raise RunError("SECTION_LOCKED", "Unlock the section before changing its heading.")
+                if section.locked:
+                    raise RunError("SECTION_LOCKED", "Unlock the section before changing its writing instructions.")
                 section.heading, section.reviewed = p.heading, False
             replacement.append(section)
             if p.id not in doc.used_section_ids:
@@ -398,8 +406,9 @@ def status(work, include_document=False):
         series = read_json(inside(root, f"attempts/{series}.json"))
     x_state = "not_generated" if not series else "stale" if (series["article_sha256"] != article_hash(doc) or
         series.get("catalog_sha256", digest(inputs["catalog"])) != digest(inputs["catalog"])) else "awaiting_public_url"
-    if series and x_state != "stale" and (manifest.get("public_url") or {}).get("verified"):
-        x_state = "ready"
+    if series and x_state != "stale":
+        from .editorial_x import export_series
+        x_state = export_series(root, manifest, doc)["status"]
     value = {"status": "review_ready" if not blockers and not errors else "draft_ready" if doc.sections and all(s.blocks for s in doc.sections)
         else "outline_ready" if doc.outline else "sources_ready", "revision_id": doc.revision_id,
         "document_id": doc.document_id, "blockers": blockers + errors, "media_ready_for_dev": not public_errors,
@@ -408,10 +417,16 @@ def status(work, include_document=False):
         "x_state": x_state, "public_url": manifest.get("public_url"),
         "artifacts": {"workspace": str(root)}, "attempts": []}
     if include_document:
+        from .editorial_dev import delivery_preview
+        value["delivery_preview"] = delivery_preview(doc, inputs, receipt)
+        value["x_series"] = series["candidate"] if series else []
         value["document"] = doc.model_dump()
         value["sources"] = inputs["sources"]
         value["attempts"] = [{k: a.get(k) for k in ("id", "kind", "status", "base_revision_id", "candidate", "error")}
             for p in sorted((root / "attempts").glob("*.json")) for a in [read_json(p)]]
+        for attempt in value["attempts"]:
+            if attempt["id"] in manifest.get("accepted_candidates", {}):
+                attempt["status"] = "accepted"
     return value
 
 

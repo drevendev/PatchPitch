@@ -10,6 +10,8 @@ from .run_store import RunError, digest, write_json, write_text, write_bytes
 CSS = """html{color-scheme:light}body{margin:0;background:#f4f3ef;color:#20252b;font:18px/1.75 system-ui,sans-serif}main{max-width:780px;margin:40px auto;padding:32px;background:white;border-radius:16px}h1{font-size:2.5rem;line-height:1.15}h2{line-height:1.25;margin-top:2em}img,video{max-width:100%;height:auto}video{width:100%}pre{overflow:auto;background:#17222b;color:#f3f5f7;padding:20px;border-radius:8px}code{font-size:.9em}figure{margin:28px 0}figcaption,.meta,.notice{font-size:.85em;color:#56616b}.placeholder{border:1px dashed #7c8791;padding:20px}.toolbar{display:flex;gap:12px;align-items:center}.mobile{max-width:375px}button{font:inherit}a{color:#17518b}blockquote{border-left:3px solid #aaa;padding-left:16px}@media(max-width:700px){main{margin:0;padding:20px;border-radius:0}h1{font-size:2rem}}"""
 JS = '"use strict";document.getElementById("width").addEventListener("click",()=>document.querySelector("main").classList.toggle("mobile"));'
 CSP = "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+INLINE_PATTERN = r"(`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\n]+\*|\[[^\]\n]+\]\([^\s)]+\))"
+RENDER_POLICY = "editorial-blocks/v2"
 
 
 def safe_link(value):
@@ -22,14 +24,13 @@ def safe_link(value):
 
 def inline(text):
     """Deliberately limited Markdown: code, emphasis and ordinary links, escaped first."""
-    pattern = r"(`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\n]+\*|\[[^\]\n]+\]\([^\s)]+\))"
     parts = []
-    for token in re.split(pattern, text):
-        if token.startswith("`") and token.endswith("`"):
+    for token in re.split(INLINE_PATTERN, text):
+        if re.fullmatch(r"`[^`\n]+`", token):
             parts.append("<code>" + html.escape(token[1:-1]) + "</code>")
-        elif token.startswith("**") and token.endswith("**"):
+        elif re.fullmatch(r"\*\*[^*\n]+\*\*", token):
             parts.append("<strong>" + html.escape(token[2:-2]) + "</strong>")
-        elif token.startswith("*") and token.endswith("*"):
+        elif re.fullmatch(r"\*[^*\n]+\*", token):
             parts.append("<em>" + html.escape(token[1:-1]) + "</em>")
         else:
             link = re.fullmatch(r"\[([^\]\n]+)\]\(([^\s)]+)\)", token)
@@ -41,13 +42,36 @@ def inline(text):
 
 
 def markdown_escape(text):
-    return re.sub(r"([\\\[\]()*_`<>])", r"\\\1", text).replace("\r", " ").replace("\n", " ")
+    text = html.escape(text, quote=False).replace("{%", "&#123;%").replace("{{", "&#123;{")
+    return re.sub(r"([\\\[\]()*_`#!|~])", r"\\\1", text).replace("\r", " ").replace("\n", " ")
+
+
+def markdown_inline(text):
+    """Serialize the same bounded inline grammar as preview; never export raw embeds."""
+    parts = []
+    for token in re.split(INLINE_PATTERN, text):
+        if re.fullmatch(r"`[^`\n]+`", token):
+            if "{%" in token or "{{" in token:
+                parts.append("<code>" + html.escape(token[1:-1]).replace("{", "&#123;") + "</code>")
+            else:
+                parts.append(token)
+        elif re.fullmatch(r"\*\*[^*\n]+\*\*", token):
+            parts.append("**" + markdown_escape(token[2:-2]) + "**")
+        elif re.fullmatch(r"\*[^*\n]+\*", token):
+            parts.append("*" + markdown_escape(token[1:-1]) + "*")
+        else:
+            link = re.fullmatch(r"\[([^\]\n]+)\]\(([^\s)]+)\)", token)
+            if link and safe_link(link[2]) and not any(c in link[2] for c in '<>"`{}'):
+                parts.append("[" + markdown_escape(link[1]) + "](" + link[2] + ")")
+            else:
+                parts.append("  \n".join(markdown_escape(line) for line in token.split("\n")))
+    return "".join(parts)
 
 
 def media_markdown(asset, assets, public):
     url = asset.public_url if public else asset.path
     url = url or ("UNRESOLVED-" + asset.id)
-    caption = markdown_escape(asset.caption)
+    caption = markdown_inline(asset.caption)
     if asset.kind in {"image", "gif"}:
         text = f"![{markdown_escape(asset.alt)}](<{url}>)"
     elif asset.kind == "video":
@@ -66,19 +90,19 @@ def body_markdown(doc, inputs, public=True):
     parts = []
     assets = {a.id: a for a in doc.assets}
     for section in doc.sections:
-        parts.append("## " + section.heading)
+        parts.append("## " + markdown_escape(section.heading))
         for block in section.blocks:
             if block.kind == "paragraph":
-                parts.append(block.text)
+                parts.append(markdown_inline(block.text))
             elif block.kind == "list":
-                parts.append("\n".join("- " + text for text in block.items))
+                parts.append("\n".join("- " + markdown_inline(text).replace("\n", "\n  ") for text in block.items))
             elif block.kind == "code":
                 parts.append(inputs["snippets"][block.snippet_id]["text"])
             elif block.kind == "media" and block.asset_id in assets:
                 parts.append(media_markdown(assets[block.asset_id], assets, public))
     cta = inputs["sources"].get("cta_text", "")
     if cta:
-        parts.append(cta)
+        parts.append(markdown_inline(cta))
     return "\n\n".join(parts) + "\n"
 
 
@@ -132,9 +156,10 @@ def html_document(doc, inputs, dev=False):
     return '<!doctype html><html lang="' + doc.language + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="' + html.escape(CSP, quote=True) + '"><title>' + html.escape(doc.metadata.title) + '</title><link rel="stylesheet" href="preview.css"><script src="preview.js" defer></script></head><body><main><nav class="toolbar"><button id="width" type="button">Desktop / mobile</button><a href="' + ("preview.html" if dev else "dev-preview.html") + '">' + ("Local media" if dev else "DEV export") + '</a></nav><p class="notice">' + notice + '</p>' + "".join(content) + '<footer class="meta">Revision ' + html.escape(doc.revision_id) + "</footer></main></body></html>"
 
 
-def export_identity(manifest, doc):
+def export_identity(manifest, doc, x_state):
     """Keep historical exports intact when article, series or final link changes."""
-    return digest({"revision": doc.revision_id, "x_series": manifest.get("x_series"), "public_url": manifest.get("public_url")})
+    return digest({"revision": doc.revision_id, "x_series": manifest.get("x_series"),
+                   "public_url": manifest.get("public_url"), "x_state": x_state, "render_policy": RENDER_POLICY})
 
 
 def export(work, out):
@@ -146,6 +171,8 @@ def export(work, out):
     errors = media_errors(root, doc)
     if errors:
         raise RunError("MEDIA_INVALID", "; ".join(errors), 4)
+    x = export_series(root, manifest, doc)
+    identity = export_identity(manifest, doc, x["status"])
     destination = Path(out).resolve()
     if destination.is_relative_to(root) and not destination.is_relative_to(root / "exports"):
         raise RunError("EXPORT_PATH", "Export to a separate folder or workspace exports, never over private history.")
@@ -163,10 +190,8 @@ def export(work, out):
             import hashlib
             if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
                 raise RunError("EXPORT_CHANGED", "Exported files were edited. Import the edits or choose a new export folder.", 4)
-        if old.get("export_identity") != export_identity(manifest, doc):
+        if old.get("export_identity") != identity:
             raise RunError("EXPORT_STALE", "This folder preserves an earlier article/announcement export. Choose a new folder.", 4)
-    # Check dependent X output before writing any publication files.
-    x = export_series(root, manifest, doc)
     destination.mkdir(parents=True, exist_ok=True)
     files = {}
     def save(name, raw):
@@ -196,7 +221,8 @@ def export(work, out):
         save("x/announcements.md", ("\n\n---\n\n".join(p["text"] for p in x["posts"]) + "\n").encode())
         save("x/manifest.json", json.dumps(x, ensure_ascii=False, indent=2).encode())
     write_json(destination / "export.json", {"schema_version": "patchpitch.editorial-export/v1", "document_id": doc.document_id,
-        "revision_id": doc.revision_id, "export_identity": export_identity(manifest, doc), "files": files, "body_sha256": digest(body_markdown(doc, inputs, True)),
+        "revision_id": doc.revision_id, "export_identity": identity, "render_policy": RENDER_POLICY,
+        "files": files, "body_sha256": digest(body_markdown(doc, inputs, True)),
         "unresolved_media": media_errors(root, doc, public=True), "x_state": x["status"]})
     return {"status": "exported", "revision_id": doc.revision_id,
             "artifacts": {"preview": str(destination / "preview.html"), "dev_preview": str(destination / "dev-preview.html"), "export": str(destination)}}

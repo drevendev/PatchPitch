@@ -3,9 +3,11 @@ campaign_id = "patchpitch-preset-example"
 language = "en"
 writing_goal = "release"
 narrator = "first_person_singular"
+angle = "Why I wanted local drafting, what the recorded runs showed, and one exact example."
 style = "clear"
 max_model_requests = 32
 hashtag_catalog = "x-catalog-2026-10-24.json"
+x_angles = ["Useful local developer workflow", "A recorded model experiment", "A reproducible CLI example"]
 
 [source]
 kind = "reviewed_fact_pack"

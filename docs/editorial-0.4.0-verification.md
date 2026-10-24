@@ -4,6 +4,9 @@
 and pushed to `main` as `9704298`. This is development work for a draft PR. Package
 version remains **0.3.0**; no version promotion, release, tag or public announcement.
 
+The observations below record the first implementation baseline. Subsequent corrections
+and verification are documented in the [PR #92 review](editorial-0.4.0-review.md).
+
 ## Delivered behavior
 
 The [specification](0.4.0-spec.md) is implemented through a separate versioned workspace,

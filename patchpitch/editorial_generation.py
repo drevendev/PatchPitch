@@ -211,6 +211,70 @@ def candidate_operations(root, doc, inputs, attempt):
     return validate_x_candidate(root, doc, inputs, candidate)
 
 
+def completed_batch(root, prefix, record):
+    """An operation result is immutable, including an explicitly rejected proposal."""
+    path = root / f"attempts/{prefix}.json"
+    if path.exists() and read_json(path)["status"] == "rejected":
+        raise RunError("CANDIDATE_NOT_READY", "This batch was rejected. Start a new operation to request another proposal.", 4)
+    return record["result"]
+
+
+def batch_children(root, prefix, request, targets, base_revision, retry_failed, dry_run):
+    """Persist the current child IDs before inference, including successful retries."""
+    with FileLock(root / ".editorial.lock"):
+        root, manifest, doc, inputs = load(root)
+        previous = operation(manifest, prefix, request)
+        if previous and previous.get("result"):
+            return {}, 0, completed_batch(root, prefix, previous)
+        if doc.revision_id != base_revision:
+            raise RunError("REVISION_CONFLICT", "The article changed before batch generation.")
+        if (previous and previous.get("base_revision_id", base_revision) != base_revision
+                and not (request["kind"] == "draft_batch" and inputs["config"]["accept_valid_candidates"])):
+            raise RunError("REVISION_CONFLICT", "This unfinished batch belongs to an older revision. Review it or start a new operation.")
+        current_runtime = runtime()
+        if previous and previous.get("runtime", current_runtime) != current_runtime:
+            raise RunError("RUNTIME_MISMATCH", "Resume an unfinished batch with its original runtime/model configuration.", 3)
+        children = dict((previous or {}).get("children", {}))
+        for target in targets:
+            identity = children.get(target, prefix + "-" + target)
+            saved = manifest["operations"].get(identity)
+            if saved:
+                historical = read_json(inside(root, f"attempts/{identity}.json"))
+                if historical.get("runtime", current_runtime) != current_runtime:
+                    raise RunError("RUNTIME_MISMATCH", "An unfinished child belongs to another runtime/model. Inspect it before a new operation.", 3)
+            if retry_failed and saved and (saved.get("result") or {}).get("status") == "failed":
+                identity = prefix + "-" + target + "-retry-" + uuid.uuid4().hex[:8]
+            # Validate derived IDs before reserving any request.
+            if identity not in manifest["operations"]:
+                operation(manifest, identity, {"check_only": True})
+            children[target] = identity
+        pending = sum(children[target] not in manifest["operations"] for target in targets)
+        if manifest["request_count"] + pending > inputs["config"]["max_model_requests"]:
+            raise RunError("REQUEST_BUDGET", "The batch would exceed the explicit model request budget.", 4)
+        if not dry_run:
+            manifest["operations"][prefix] = {**(previous or {}), "request_sha256": digest(request),
+                "result": None, "base_revision_id": (previous or {}).get("base_revision_id", base_revision),
+                "children": children, "runtime": (previous or {}).get("runtime", current_runtime)}
+            write_json(root / "manifest.json", manifest)
+        return children, pending, None
+
+
+def finish_batch(root, prefix, attempt, result, base_revision=None, x_series=None):
+    with FileLock(root / ".editorial.lock"):
+        _, manifest, current, _ = load(root)
+        record = manifest["operations"][prefix]
+        if record.get("result"):
+            return completed_batch(root, prefix, record)
+        if base_revision is not None and (current.revision_id != base_revision or manifest.get("x_series") != x_series):
+            raise RunError("REVISION_CONFLICT", "Article or announcements changed during generation; child attempts are retained.")
+        path = root / f"attempts/{prefix}.json"
+        if attempt and not path.exists():
+            write_json(path, attempt)
+        record["result"] = result
+        write_json(root / "manifest.json", manifest)
+    return result
+
+
 def x_batch(work, operation_id=None, target_post_id=None, expected_revision_id=None, dry_run=False, retry_failed=False):
     from .editorial_x import x_payload
     root, manifest, doc, inputs = load(work)
@@ -218,7 +282,7 @@ def x_batch(work, operation_id=None, target_post_id=None, expected_revision_id=N
     request = {"kind": "x_batch", "target_post_id": target_post_id, "expected_revision_id": expected_revision_id}
     old = operation(manifest, prefix, request)
     if old and old.get("result") and not dry_run:
-        return old["result"]
+        return completed_batch(root, prefix, old)
     if expected_revision_id and expected_revision_id != doc.revision_id:
         raise RunError("REVISION_CONFLICT", "The article changed before announcement generation.")
     previous = read_json(inside(root, f"attempts/{manifest['x_series']}.json")) if manifest.get("x_series") else None
@@ -227,25 +291,11 @@ def x_batch(work, operation_id=None, target_post_id=None, expected_revision_id=N
     targets = [target_post_id] if target_post_id else ["P01", "P02", "P03"]
     for target in targets:
         x_payload(root, doc, inputs, target, fresh_post=True)
-    identities = {}
-    for target in targets:
-        identity = prefix + "-" + target
-        saved = manifest["operations"].get(identity)
-        if retry_failed and saved and (saved.get("result") or {}).get("status") == "failed":
-            identity += "-retry-" + uuid.uuid4().hex[:8]
-        identities[target] = identity
-    pending = [p for p in targets if identities[p] not in manifest["operations"]]
-    if manifest["request_count"] + len(pending) > inputs["config"]["max_model_requests"]:
-        raise RunError("REQUEST_BUDGET", "The X series would exceed the explicit request budget.", 4)
+    identities, pending, completed = batch_children(root, prefix, request, targets, doc.revision_id, retry_failed, dry_run)
+    if completed:
+        return completed
     if dry_run:
-        return {"status": "planned", "model_requests": len(pending)}
-    with FileLock(root / ".editorial.lock"):
-        _, current, latest, _ = load(root)
-        if latest.revision_id != doc.revision_id:
-            raise RunError("REVISION_CONFLICT", "The article changed before generation.")
-        operation(current, prefix, request)
-        current["operations"].setdefault(prefix, {"request_sha256": digest(request), "result": None})
-        write_json(root / "manifest.json", current)
+        return {"status": "planned", "model_requests": pending}
     results = [propose(root, "x-post", identities[target], target, expected_revision_id=doc.revision_id) for target in targets]
     children = [read_json(inside(root, f"attempts/{r['candidate']}.json")) for r in results]
     posts = [a["candidate"][0] for a in children]
@@ -257,13 +307,7 @@ def x_batch(work, operation_id=None, target_post_id=None, expected_revision_id=N
         "base_revision_id": doc.revision_id, "article_sha256": article_hash(doc), "catalog_sha256": digest(inputs["catalog"]),
         "x_base_series": manifest.get("x_series"), "child_attempts": [a["id"] for a in children], "recorded_at": now()}
     result = {"status": "candidate", "candidate": prefix, "revision_id": doc.revision_id, "results": results}
-    with FileLock(root / ".editorial.lock"):
-        _, current, latest, _ = load(root)
-        if latest.revision_id != doc.revision_id or current.get("x_series") != manifest.get("x_series"):
-            raise RunError("REVISION_CONFLICT", "Article or announcements changed during generation; child attempts are retained.")
-        write_json(root / f"attempts/{prefix}.json", attempt)
-        current["operations"][prefix]["result"] = result
-        write_json(root / "manifest.json", current)
+    result = finish_batch(root, prefix, attempt, result, doc.revision_id, manifest.get("x_series"))
     if inputs["config"]["accept_valid_candidates"]:
         return accept(root, prefix, doc.revision_id)
     return result
@@ -274,6 +318,9 @@ def recover(work, candidate):
         raise RunError("ARGUMENT_ERROR", "Select a saved attempt ID.")
     root, manifest, doc, inputs = load(work)
     attempt = read_json(inside(root, f"attempts/{candidate}.json"))
+    applied = manifest.get("accepted_candidates", {}).get(candidate)
+    if applied:
+        return {"status": "accepted", "candidate": candidate, "revision_id": applied["result"]["revision_id"]}
     if attempt["status"] in {"candidate", "accepted", "rejected"}:
         return {"status": attempt["status"], "candidate": candidate, "revision_id": attempt["base_revision_id"]}
     if attempt.get("runtime") != runtime():
@@ -298,6 +345,9 @@ def reject(work, candidate):
     if not re_id(candidate):
         raise RunError("ARGUMENT_ERROR", "Select a candidate ID.")
     with FileLock(root / ".editorial.lock"):
+        _, manifest, _, _ = load(root)
+        if candidate in manifest.get("accepted_candidates", {}):
+            raise RunError("CANDIDATE_NOT_READY", "This proposal has already been applied; restore a historical revision to undo it.", 4)
         attempt = read_json(inside(root, f"attempts/{candidate}.json"))
         if attempt["status"] not in {"candidate", "needs_review", "rejected"}:
             raise RunError("CANDIDATE_NOT_READY", "Only a pending proposal can be rejected.", 4)
@@ -317,14 +367,29 @@ def accept(work, candidate, expected_revision_id, operation_id=None):
     if attempt["kind"] == "x":
         from .editorial_x import accept_series
         return accept_series(root, attempt, expected_revision_id, operation_id)
-    result = apply(root, {"operation_id": operation_id, "expected_revision_id": expected_revision_id, "operations": attempt["candidate"]})
-    attempt["status"], attempt["accepted_revision_id"] = "accepted", result["revision_id"]
-    write_json(root / f"attempts/{candidate}.json", attempt)
-    for child in attempt.get("child_attempts", []):
-        saved = read_json(inside(root, f"attempts/{child}.json"))
-        saved["status"], saved["accepted_revision_id"] = "accepted", result["revision_id"]
-        saved["accepted_by_batch"] = candidate
-        write_json(root / f"attempts/{child}.json", saved)
+    with FileLock(root / ".editorial.lock"):
+        _, manifest, _, _ = load(root)
+        attempt = read_json(inside(root, f"attempts/{candidate}.json"))
+        value = {"operation_id": operation_id, "expected_revision_id": expected_revision_id, "operations": attempt["candidate"]}
+        operation(manifest, operation_id, value)
+        previous = manifest.get("accepted_candidates", {}).get(candidate)
+        if previous:
+            result = previous["result"]
+        else:
+            if attempt["status"] not in {"candidate", "accepted"}:
+                raise RunError("CANDIDATE_NOT_READY", "This proposal is no longer pending.", 4)
+            for child in attempt.get("child_attempts", []):
+                if read_json(inside(root, f"attempts/{child}.json"))["status"] == "rejected":
+                    raise RunError("CANDIDATE_NOT_READY", "A child proposal was rejected; review a new batch or the remaining sections.", 4)
+            from .editorial import apply_locked
+            result = apply_locked(root, value, accepted_candidates=[candidate, *attempt.get("child_attempts", [])])
+        attempt["status"], attempt["accepted_revision_id"] = "accepted", result["revision_id"]
+        write_json(root / f"attempts/{candidate}.json", attempt)
+        for child in attempt.get("child_attempts", []):
+            saved = read_json(inside(root, f"attempts/{child}.json"))
+            saved["status"], saved["accepted_revision_id"] = "accepted", result["revision_id"]
+            saved["accepted_by_batch"] = candidate
+            write_json(root / f"attempts/{child}.json", saved)
     return result
 
 
@@ -335,34 +400,31 @@ def re_id(value):
 
 def draft(work, operation_id=None, dry_run=False, retry_failed=False):
     root, manifest, doc, inputs = load(work)
+    prefix = operation_id or "draft-" + uuid.uuid4().hex
+    request = {"kind": "draft_batch"}
+    old = operation(manifest, prefix, request)
+    if old and old.get("result") and not dry_run:
+        return completed_batch(root, prefix, old)
     if not doc.outline_reviewed:
         raise RunError("OUTLINE_NOT_REVIEWED", "Review the accepted outline first.", 4)
     sections = [s for s in doc.sections if not s.blocks and not s.locked]
-    prefix = operation_id or "draft-" + uuid.uuid4().hex
-    children = {}
-    for section in sections:
-        identity = prefix + "-" + section.id
-        old = manifest["operations"].get(identity)
-        if retry_failed and old and (old.get("result") or {}).get("status") == "failed":
-            identity = prefix + "-" + section.id + "-retry-" + uuid.uuid4().hex[:8]
-        children[section.id] = identity
-    pending = [s for s in sections if children[s.id] not in manifest["operations"]]
-    if manifest["request_count"] + len(pending) > inputs["config"]["max_model_requests"]:
-        raise RunError("REQUEST_BUDGET", "The complete draft would exceed its request budget.", 4)
+    children, pending, completed = batch_children(root, prefix, request, [s.id for s in sections], doc.revision_id, retry_failed, dry_run)
+    if completed:
+        return completed
     if dry_run:
-        return {"status": "planned", "model_requests": len(pending)}
+        return {"status": "planned", "model_requests": pending}
     results = []
     for section in sections:
         # Candidate bases remain the current accepted revision, including explicit auto-accept.
-        results.append(propose(root, "section", children[section.id], section.id))
+        revision = load(root)[2].revision_id if inputs["config"]["accept_valid_candidates"] else doc.revision_id
+        results.append(propose(root, "section", children[section.id], section.id, expected_revision_id=revision))
     if not results or inputs["config"]["accept_valid_candidates"]:
-        return {"status": "draft_completed", "results": results}
+        return finish_batch(root, prefix, None, {"status": "draft_completed", "results": results})
     attempts = [read_json(inside(root, f"attempts/{r['candidate']}.json")) for r in results]
     if any(a["base_revision_id"] != doc.revision_id for a in attempts):
         raise RunError("REVISION_CONFLICT", "Saved section candidates use a different base; review them individually.")
     combined = {"id": prefix, "kind": "draft", "status": "candidate", "base_revision_id": doc.revision_id,
         "candidate": [change for a in attempts for change in a["candidate"]], "child_attempts": [a["id"] for a in attempts],
         "article_sha256": article_hash(doc), "recorded_at": now()}
-    with FileLock(root / ".editorial.lock"):
-        write_json(root / f"attempts/{prefix}.json", combined)
-    return {"status": "candidate", "candidate": prefix, "revision_id": doc.revision_id, "results": results}
+    return finish_batch(root, prefix, combined, {"status": "candidate", "candidate": prefix, "revision_id": doc.revision_id, "results": results},
+                        doc.revision_id, manifest.get("x_series"))

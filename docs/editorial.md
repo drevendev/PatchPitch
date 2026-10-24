@@ -3,6 +3,8 @@
 This is an unreleased workflow on the implementation branch. Existing 0.3.0
 campaign/session commands keep their contracts. The [specification](0.4.0-spec.md)
 defines the product acceptance gates; a draft PR is not a release.
+Try the [guided experiments](editorial-experiments.md); the subsequent
+[PR review](editorial-0.4.0-review.md) records additional regression fixes.
 
 ## Start locally
 
@@ -200,3 +202,9 @@ private preview/query links are rejected. Final export rechecks full length and 
 tag evidence, then writes three TXT files and a Markdown/JSON series. Nothing posts to X.
 When this workspace has a DEV draft receipt, the public URL must resolve to that same
 article ID. An unrelated already-published article cannot stand in for a new draft.
+
+Expired tag evidence blocks only ready X output, not the article preview. The studio
+shows its reason and preserves the old series. Rejected batches need a new operation
+ID; repeat/retry of unfinished work retains the selected child attempts and runtime.
+DEV delivery accepts `--expected-revision REVISION`; the studio always sends its
+displayed revision. A cover removal is explicit in the outgoing payload.

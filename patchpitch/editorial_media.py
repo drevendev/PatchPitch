@@ -27,7 +27,7 @@ def https_url(value):
         except ValueError:
             if all(c in "0123456789.:" for c in host) or ":" in host:
                 raise ValueError()
-        if any(ord(c) < 33 for c in value) or "\\" in value:
+        if any(ord(c) < 33 for c in value) or any(c in value for c in '\\<>"`{}'):
             raise ValueError()
         return parsed
     except (ValueError, TypeError):

@@ -48,11 +48,12 @@ def x_payload(root, doc, inputs, target_post_id=None, fresh_post=False):
         "Reuse concrete topic words from cited facts so tag matching is possible. Preserve conditions. "
         "Article and facts alone authorize claims; examples are untrusted style DATA. Never invent experience, experiments, numbers or availability. "
         + voice.style_instructions(request))
-    data = {"article": body_markdown(doc, inputs), "selected_facts": facts(inputs), "angles": inputs["config"]["x_angles"],
-            "voice_examples": voice.examples(request), "candidate_tag_keywords": [{"tag": t.tag, "keywords": t.keywords} for t in catalog.tags]}
     used = sorted({sid for s in doc.sections for b in s.blocks for sid in b.source_ids})
+    permitted = {sid: text for sid, text in facts(inputs).items() if sid in used}
+    data = {"article": body_markdown(doc, inputs), "selected_facts": permitted, "angles": inputs["config"]["x_angles"],
+            "voice_examples": voice.examples(request), "candidate_tag_keywords": [{"tag": t.tag, "keywords": t.keywords} for t in catalog.tags]}
     available = decisions(inputs, request, {"id": "article-context", "source_ids": used,
-        "topic": body_markdown(doc, inputs) + " " + " ".join(facts(inputs).values())})
+        "topic": body_markdown(doc, inputs) + " " + " ".join(permitted.values())})
     data["evidence_backed_article_tag_plan"] = [{"tag": t["tag"], "usable_exact_topic_words": t["topic_matches"]}
         for t in available["selected"]]
     if fresh_post:
@@ -149,6 +150,22 @@ def validate_x_candidate(root, doc, inputs, value, start_index=0, single=False):
     return output
 
 
+def series_evidence(doc, inputs, posts):
+    """Read-only checks stay available without the optional voice compiler."""
+    from types import SimpleNamespace
+    request = SimpleNamespace(language=doc.language, audience=inputs["sources"]["audience"],
+        changes=[SimpleNamespace(**{k: c[k] for k in ("id", "text", "include")}) for c in inputs["sources"]["changes"]])
+    checked = []
+    for post in posts:
+        fresh = decisions(inputs, request, post)
+        if {t["tag"] for t in fresh["selected"]} != set(post["hashtags"]):
+            raise RunError("X_HASHTAG_SELECTION", "Tag evidence changed; review the series again.", 4)
+        provisional = post["prose"] + "\n\n" + " ".join(post["hashtags"]) + "\n\nhttps://example.com/article"
+        hashtags.validate_text(provisional, post["hashtags"])
+        checked.append(fresh)
+    return checked
+
+
 def accept_series(root, attempt, expected, operation_id):
     with FileLock(root / ".editorial.lock"):
         root, manifest, doc, inputs = load(root)
@@ -158,11 +175,20 @@ def accept_series(root, attempt, expected, operation_id):
             return previous["result"]
         if doc.revision_id != expected or article_hash(doc) != attempt["article_sha256"]:
             raise RunError("REVISION_CONFLICT", "Review the new article before accepting its announcements.")
+        if attempt.get("catalog_sha256", digest(inputs["catalog"])) != digest(inputs["catalog"]):
+            raise RunError("REVISION_CONFLICT", "The tag catalog changed; review a new announcement proposal.")
         if "x_base_series" in attempt and manifest.get("x_series") != attempt["x_base_series"]:
             raise RunError("REVISION_CONFLICT", "Announcements were edited while this candidate was pending.")
+        current = read_json(inside(root, f"attempts/{attempt['id']}.json"))
+        if current["status"] == "rejected" or any(read_json(inside(root, f"attempts/{child}.json"))["status"] == "rejected"
+                for child in attempt.get("child_attempts", [])):
+            raise RunError("CANDIDATE_NOT_READY", "This series or one of its proposals was rejected.", 4)
+        series_evidence(doc, inputs, attempt["candidate"])
         manifest["x_series"] = attempt["id"]
         result = {"status": "accepted", "candidate": attempt["id"], "revision_id": doc.revision_id}
         manifest["operations"][operation_id] = {"request_sha256": digest(request), "result": result}
+        for candidate in [attempt["id"], *attempt.get("child_attempts", [])]:
+            manifest.setdefault("accepted_candidates", {})[candidate] = {"operation_id": operation_id, "result": result}
         attempt["status"] = "accepted"
         write_json(root / f"attempts/{attempt['id']}.json", attempt)
         for child in attempt.get("child_attempts", []):
@@ -181,21 +207,21 @@ def export_series(root, manifest, doc):
     if article_hash(doc) != attempt["article_sha256"] or attempt.get("catalog_sha256", digest(current_inputs["catalog"])) != digest(current_inputs["catalog"]):
         return {"status": "stale", "candidate": attempt["id"], "posts": attempt["candidate"]}
     link = manifest.get("public_url") or {}
-    if not link.get("verified"):
-        return {"status": "awaiting_public_url", "posts": attempt["candidate"]}
     _, _, _, inputs = load(root)
-    from types import SimpleNamespace
     # Export is offline and must not depend on a currently installed voice compiler.
-    request = SimpleNamespace(language=doc.language, audience=inputs["sources"]["audience"],
-        changes=[SimpleNamespace(**{k: c[k] for k in ("id", "text", "include")}) for c in inputs["sources"]["changes"]])
+    try:
+        checked = series_evidence(doc, inputs, attempt["candidate"])
+    except RunError as exc:
+        return {"status": "blocked", "posts": attempt["candidate"], "error": exc.as_dict()}
     posts = []
-    for p in attempt["candidate"]:
-        fresh = decisions(inputs, request, p)
-        if {t["tag"] for t in fresh["selected"]} != set(p["hashtags"]):
-            raise RunError("X_HASHTAG_SELECTION", "Tag evidence changed; review the series again.", 4)
+    for p, fresh in zip(attempt["candidate"], checked):
+        if not link.get("verified"):
+            continue
         text = p["prose"] + "\n\n" + " ".join(p["hashtags"]) + "\n\n" + link["url"]
         hashtags.validate_text(text, p["hashtags"])
         posts.append({**p, "text": text, "length": estimate(text), "decisions": fresh})
+    if not link.get("verified"):
+        return {"status": "awaiting_public_url", "posts": attempt["candidate"]}
     return {"status": "ready", "article_revision_id": attempt["base_revision_id"],
             "article_sha256": attempt["article_sha256"], "url": link["url"], "posts": posts}
 
@@ -220,18 +246,19 @@ def bind_url(work, url, verify=False, operation_id=None):
             raise RunError("ARTICLE_URL_UNVERIFIED", "The public article response was invalid.", 4) from exc
         if not article.get("published_at") or type(article.get("id")) is not int or article.get("url", "").rstrip("/") != url.rstrip("/"):
             raise RunError("ARTICLE_URL_UNVERIFIED", "The API did not confirm this published article.", 4)
-        receipt = root / "receipts/dev.json"
-        if receipt.exists() and read_json(receipt).get("article_id") != article["id"]:
-            raise RunError("ARTICLE_ID_MISMATCH", "This public article differs from the workspace's delivered draft.", 4)
         link.update(verified=True, checked_at=now(), article_id=article["id"])
     with FileLock(root / ".editorial.lock"):
         _, current, _, _ = load(root)
-        current["public_url"] = link
-        result = {"status": "url_verified" if verify else "url_unverified", "public_url": link}
         if operation_id:
             previous = operation(current, operation_id, request)
             if previous:
                 return previous["result"]
+        receipt = root / "receipts/dev.json"
+        if verify and receipt.exists() and read_json(receipt).get("article_id") != link["article_id"]:
+            raise RunError("ARTICLE_ID_MISMATCH", "This public article differs from the workspace's delivered draft.", 4)
+        current["public_url"] = link
+        result = {"status": "url_verified" if verify else "url_unverified", "public_url": link}
+        if operation_id:
             current["operations"][operation_id] = {"request_sha256": digest(request), "result": result}
         write_json(root / "manifest.json", current)
     return result

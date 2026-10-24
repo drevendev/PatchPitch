@@ -12,6 +12,8 @@ from .campaigns import now
 def cover_identity(value):
     """Forem's DTO can expose the submitted main_image as a transformed cover_image."""
     from urllib.parse import urlsplit, unquote
+    if value == "":
+        return None
     if isinstance(value, str) and urlsplit(value).hostname == "media2.dev.to":
         lower = value.lower()
         index = lower.rfind("/https%3a")
@@ -21,11 +23,15 @@ def cover_identity(value):
 
 
 def payload(doc, inputs):
+    import re
     body = body_markdown(doc, inputs, public=True)
     if body.lstrip().startswith("---"):
         raise RunError("DEV_FRONT_MATTER", "Import front matter into metadata before delivery.", 4)
+    if re.search(r"\{[%{]", body):
+        raise RunError("DEV_UNSUPPORTED_MARKUP", "Exact source code contains Liquid delimiters. Review a safe DEV representation before delivery; the source is preserved.", 4)
     value = {"title": doc.metadata.title, "description": doc.metadata.description, "body_markdown": body,
-        "tags": doc.metadata.tags, "published": False, "ai_disclosure_level": doc.metadata.ai_disclosure_level}
+        "tags": doc.metadata.tags, "published": False, "ai_disclosure_level": doc.metadata.ai_disclosure_level,
+        "main_image": None}
     if doc.metadata.cover_asset_id:
         value["main_image"] = next(a.public_url for a in doc.assets if a.id == doc.metadata.cover_asset_id)
     return value
@@ -39,7 +45,7 @@ def observable(article, expected):
     # Omitted disclosure is unknown, and is still explicitly sent on every PUT.
     if article.get("ai_disclosure_level") is not None:
         value["ai_disclosure_level"] = article["ai_disclosure_level"]
-    if expected.get("main_image"):
+    if "main_image" in expected or "main_image" in article or "cover_image" in article:
         if "main_image" not in article and "cover_image" not in article:
             raise RunError("REMOTE_STATE_UNKNOWN", "DEV did not expose the cover for comparison.", 5)
         value["main_image"] = cover_identity(article.get("main_image", article.get("cover_image")))
@@ -48,11 +54,22 @@ def observable(article, expected):
 
 def matches_submitted(remote, expected):
     actual = observable(remote, expected)
-    wanted = {k: expected[k] for k in actual}
+    wanted = {k: expected.get(k) if k == "main_image" else expected[k] for k in actual}
     wanted["tags"] = sorted(wanted["tags"])
     if "main_image" in wanted:
         wanted["main_image"] = cover_identity(wanted["main_image"])
     return digest(actual) == digest(wanted)
+
+
+def delivery_preview(doc, inputs, receipt=None):
+    """Show exactly what local revision/target a delivery would use, without a key/network."""
+    result = {"revision_id": doc.revision_id, "title": doc.metadata.title,
+              "article_id": (receipt or {}).get("article_id"), "payload_sha256": None, "published": False}
+    try:
+        result["payload_sha256"] = digest(payload(doc, inputs))
+    except RunError as exc:
+        result["error"] = exc.as_dict()
+    return result
 
 
 def inspect(work):
@@ -71,11 +88,13 @@ def inspect(work):
     return result
 
 
-def deliver(work, existing_id=None, expected_remote_hash=None, preflight=False):
+def deliver(work, existing_id=None, expected_remote_hash=None, preflight=False, expected_revision_id=None):
     from pathlib import Path
     root = Path(work).resolve()
     with FileLock(root / ".editorial.lock"):
         root, manifest, doc, inputs = load(root)
+        if expected_revision_id and doc.revision_id != expected_revision_id:
+            raise RunError("REVISION_CONFLICT", "The article changed; review the current revision before DEV delivery.")
         check_document(doc, inputs)
         ready = status(root)
         if ready["status"] != "review_ready":

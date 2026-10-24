@@ -6,7 +6,9 @@ New announcements remain on hold at the owner's request. The earlier DEV/X artic
 
 ## 0.4.0 development — editorial article pipeline
 
-Status: [specification](0.4.0-spec.md) committed to `main` in `9704298`; implementation on `codex/0.4.0-editorial-pipeline`, prepared for a draft PR. The shared CLI/studio pipeline now provides editable plans, scoped Quillgrain proposals, immutable revisions, section/block edits and locks, real-media preview/export, DEV draft synchronization and three linked X announcements. Details and live evidence: [verification report](editorial-0.4.0-verification.md); commands: [editorial guide](editorial.md).
+Status: [specification](0.4.0-spec.md) committed to `main` in `9704298`; implementation on `codex/0.4.0-editorial-pipeline` in [draft PR #92](https://github.com/drevendev/PatchPitch/pull/92). The shared CLI/studio pipeline now provides editable plans, scoped Quillgrain proposals, immutable revisions, section/block edits and locks, real-media preview/export, DEV draft synchronization and three linked X announcements. Details and live evidence: [verification report](editorial-0.4.0-verification.md); commands: [editorial guide](editorial.md).
+
+Additional [PR #92 review](editorial-0.4.0-review.md) fixes repeated-retry/rejected-batch handling, DEV revision and cover synchronization, safe Markdown export, unsaved plan arrangement, independent X evidence blockers and public-body limits. The PR remains a draft and is not merged. Suggested [product experiments](editorial-experiments.md) are available without public posting.
 
 Automated regressions cover recovery, stale edits/exports, exact code/media preservation, DEV conflicts/disclosure/cover and X length/evidence/URL binding. Two real-model materials (PatchPitch and Quillgrain) reached private DEV drafts. These are engineering acceptance drafts, not new announcements. Original failed model attempts are retained; semantic author review is still required.
 

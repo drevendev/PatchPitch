@@ -56,7 +56,7 @@ def parser():
             sub.add_argument("--dry-run", action="store_true")
         if name in {"draft", "x"}:
             sub.add_argument("--retry-failed", action="store_true")
-        if name in {"outline", "revise", "x", "accept", "edit-x", "import-markdown"}:
+        if name in {"outline", "revise", "x", "accept", "edit-x", "import-markdown", "deliver"}:
             sub.add_argument("--expected-revision", required=name == "accept")
         if name == "review-dev-preview":
             sub.add_argument("--expected-revision", required=True)
@@ -177,7 +177,7 @@ def dispatch_editorial(args):
         return editorial.validate(args.work)
     if args.action == "deliver":
         from .editorial_dev import deliver
-        return deliver(args.work, args.existing_id, args.remote_hash, args.preflight)
+        return deliver(args.work, args.existing_id, args.remote_hash, args.preflight, args.expected_revision)
     if args.action == "remote":
         from .editorial_dev import inspect
         return inspect(args.work)

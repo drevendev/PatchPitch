@@ -131,3 +131,90 @@ def test_switching_workspace_clears_previous_preview_and_x_cards(ui_url, workspa
         expect(page.locator("#x-posts .section-card")).to_have_count(0)
         expect(page.locator("#preview-link")).to_be_hidden()
         browser.close()
+
+
+def test_unsaved_plan_structure_and_words_survive_reload(ui_url, workspace):
+    complete(workspace)
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page()
+        page.goto(ui_url + "/editorial")
+        page.locator("#work").fill(str(workspace)); page.locator("#open").click()
+        expect(page.locator("#plan-heading-S01")).to_be_visible()
+        page.locator("#plan-heading-S01").fill("My renamed opening")
+        page.locator("#plan-editor .section-card").first.get_by_role("button", name="Move down", exact=True).click()
+        expect(page.locator("#plan-editor .section-card input").first).to_have_attribute("id", "plan-heading-S02")
+        page.reload(); page.locator("#open").click()
+        expect(page.locator("#plan-heading-S01")).to_have_value("My renamed opening")
+        expect(page.locator("#plan-editor .section-card input").first).to_have_attribute("id", "plan-heading-S02")
+        page.locator("#build-preview").click()
+        expect(page.locator("#error")).to_contain_text("Save pending")
+        page.get_by_role("button", name="Save plan edits", exact=True).click()
+        expect(page.locator('[data-section="S01"] h3')).to_have_text("My renamed opening · S01")
+        assert [s.id for s in e.load(workspace)[2].sections] == ["S02", "S01"]
+        browser.close()
+
+
+def test_model_proposals_require_pending_article_edits_to_be_saved(ui_url, workspace, model):
+    complete(workspace)
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page()
+        page.goto(ui_url + "/editorial")
+        page.locator("#work").fill(str(workspace)); page.locator("#open").click()
+        page.locator("#block-B01").fill("An unsaved article change")
+        page.locator("#generate-x").click()
+        expect(page.locator("#error")).to_contain_text("Save or discard pending article edits")
+        assert not model
+        browser.close()
+
+
+def test_delivery_shows_the_payload_and_sends_the_displayed_revision(ui_url, workspace):
+    complete(workspace)
+    revision, calls = e.load(workspace)[2].revision_id, []
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page()
+        def capture(route):
+            body = route.request.post_data_json
+            if body["action"] == "deliver":
+                calls.append(body)
+                route.fulfill(status=409, json={"error": {"code": "REVISION_CONFLICT", "message": "Reopen the article"}})
+            else:
+                route.continue_()
+        page.route("**/api/editorial", capture)
+        page.goto(ui_url + "/editorial")
+        page.locator("#work").fill(str(workspace)); page.locator("#open").click()
+        page.get_by_text("Review delivery details", exact=True).click()
+        expect(page.locator("#delivery-plan")).to_contain_text(revision)
+        expect(page.locator("#delivery-plan")).to_contain_text('"payload_sha256"')
+        page.locator("#deliver").click()
+        expect(page.locator("#error")).to_contain_text("REVISION_CONFLICT")
+        assert calls[0]["expected_revision_id"] == revision
+        browser.close()
+
+
+def test_another_x_generation_after_acceptance_gets_a_fresh_operation(ui_url, workspace, model):
+    complete(workspace)
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page()
+        def route_model(route):
+            body = route.request.post_data_json
+            if body["action"] == "x":
+                route.fulfill(json=dispatch(body))
+            else:
+                route.continue_()
+        page.route("**/api/editorial", route_model)
+        page.goto(ui_url + "/editorial")
+        page.locator("#work").fill(str(workspace)); page.locator("#open").click()
+        page.locator("#generate-x").click()
+        expect(page.locator(".candidate")).to_have_count(1)
+        page.get_by_role("button", name="Accept this candidate", exact=True).click()
+        expect(page.locator("#x-posts .section-card")).to_have_count(3)
+        assert len(model) == 3
+        page.locator("#generate-x").click()
+        expect(page.locator(".candidate")).to_have_count(1)
+        expect(page.locator(".candidate .diff pre").first).to_contain_text("I prepare local drafts.")
+        assert len(model) == 6
+        browser.close()

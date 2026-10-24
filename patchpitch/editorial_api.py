@@ -77,7 +77,9 @@ def dispatch(data):
         root, manifest, doc, _ = domain.load(work)
         if data.get("expected_revision_id") and data["expected_revision_id"] != doc.revision_id:
             raise RunError("REVISION_CONFLICT", "The article changed; reopen it before preview/export.")
-        out = data.get("out") or str(root / "exports" / doc.revision_id / rendering.export_identity(manifest, doc)[:16])
+        from .editorial_x import export_series
+        x_state = export_series(root, manifest, doc)["status"]
+        out = data.get("out") or str(root / "exports" / doc.revision_id / rendering.export_identity(manifest, doc, x_state)[:16])
         value = rendering.export(work, out)
         token = secrets.token_urlsafe(24)
         PREVIEWS[token] = Path(out).resolve()
@@ -87,7 +89,9 @@ def dispatch(data):
         return value
     if action == "deliver":
         from .editorial_dev import deliver
-        return deliver(work, data.get("existing_id"), data.get("remote_hash"), data.get("preflight", False))
+        if not data.get("expected_revision_id"):
+            raise RunError("ARGUMENT_ERROR", "Reopen the article and supply the displayed revision before DEV delivery.")
+        return deliver(work, data.get("existing_id"), data.get("remote_hash"), data.get("preflight", False), data.get("expected_revision_id"))
     if action == "remote":
         from .editorial_dev import inspect
         return inspect(work)
