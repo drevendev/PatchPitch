@@ -1,0 +1,9 @@
+provider = "quillgrain"
+mode = "local_pack"
+path = "PATH_TO_YOUR_CHOSEN_PACK"
+register = "maker_announcement"
+tags = ["social.telegram"]
+max_chars = 8000
+# bindings = { "your.common.pack" = "PATH_TO_COMMON_PACK" }
+# example_pool = "examples.chosen"
+# Add "examples.chosen" to tags when selecting that pool.

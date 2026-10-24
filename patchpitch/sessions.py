@@ -1,6 +1,7 @@
 """Validate explicit local save files. No server storage or model calls."""
 import json
 import math
+import re
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
@@ -21,7 +22,7 @@ class FileModel(BaseModel):
 Text = Annotated[str, StringConstraints(max_length=100_000)]
 SourceID = Annotated[str, StringConstraints(pattern=r"^C[0-9]{2}$")]
 RecordID = Annotated[str, StringConstraints(pattern=r"^A[0-9]{2,6}$")]
-FORMATS = {"devlog", "community", "short", "x_single", "x_thread"}
+FORMATS = {"devlog", "community", "short", "x_single", "x_thread", "telegram", "dev_article", "github_release_notes"}
 
 
 class Profile(FileModel):
@@ -33,6 +34,9 @@ class Profile(FileModel):
 
 
 class Form(FileModel):
+    legacy_x: bool = False
+    language: Literal["en", "ru"] = "en"
+    tag_allowlist: Annotated[str, StringConstraints(max_length=220)] = ""
     product: Annotated[str, StringConstraints(max_length=80)]
     description: Annotated[str, StringConstraints(max_length=400)]
     audience: Annotated[str, StringConstraints(max_length=180)]
@@ -41,8 +45,8 @@ class Form(FileModel):
     cta: Annotated[str, StringConstraints(max_length=300)]
     changes: Annotated[str, StringConstraints(max_length=6200)]
     media_note: Annotated[str, StringConstraints(max_length=500)]
-    format: Literal["devlog", "community", "short", "x_single", "x_thread"]
-    style: Literal["warm", "clear", "lively"]
+    format: Literal["devlog", "community", "short", "x_single", "x_thread", "telegram", "dev_article", "github_release_notes"]
+    style: Literal["warm", "clear", "lively", "voice"]
     intent: Literal["show_result", "build_story", "release", "ask_question"]
     post_count: int = Field(ge=3, le=7)
     auto_tags: bool
@@ -82,7 +86,24 @@ class SavedPost(FileModel):
 
 
 def validate_request(value):
+    if value.get("format") in {"dev_article", "github_release_notes"}:
+        from .longform import LongformInput
+        return LongformInput.model_validate(value)
     return (SocialInput if value.get("format", "").startswith("x_") else PitchInput).model_validate(value)
+
+
+def draft_model(fmt):
+    if fmt in {"dev_article", "github_release_notes"}:
+        from .longform import ArticleDraft
+        return ArticleDraft
+    return Draft if fmt == "devlog" else PostDraft
+
+
+def draft_key(data):
+    key = [data["context"]["product"], data["context"]["release_label"], data["presentation"]["format"]]
+    if data["context"].get("target_id"):
+        key.append(data["context"]["target_id"])
+    return json.dumps(key, ensure_ascii=False, separators=(",", ":"))
 
 
 def validate_data(data):
@@ -102,6 +123,15 @@ def validate_data(data):
     for key, default in (("pack_id", ""), ("pack_version", ""), ("pack_sha256", ""), ("context_overrides", []), ("writing_goal", "release")):
         if context.get(key, default) != getattr(request, key):
             raise ValueError("Draft provenance differs from its original input.")
+    if request.voice_bundle is None and context.get("voice") is not None:
+        raise ValueError("A draft cannot claim a voice absent from its original input.")
+    if request.voice_bundle is not None:
+        from .voice import identity
+        if (not isinstance(context.get("voice"),dict) or any(context["voice"].get(k) != v for k,v in identity(request).items() if k != "effective_style_sha256")
+                or not re.fullmatch(r"[0-9a-f]{64}",context["voice"].get("effective_style_sha256", ""))):
+            raise ValueError("Saved voice identity differs from original input.")
+    if context.get("language", "en") != request.language:
+        raise ValueError("Saved language differs from original input.")
     datetime.fromisoformat(context["generated_at"].replace("Z", "+00:00"))
     if data.get("body_markdown") is not None and not isinstance(data["body_markdown"], str):
         raise ValueError("Invalid original body Markdown.")
@@ -139,7 +169,7 @@ def validate_data(data):
         if not 1 <= len(posts) <= 7:
             raise ValueError("Invalid original post count.")
     else:
-        (Draft if fmt == "devlog" else PostDraft).model_validate(data["draft"])
+        draft_model(fmt).model_validate(data["draft"])
         if not isinstance(data["markdown"], str) or len(data["markdown"]) > 100_000:
             raise ValueError("Invalid original Markdown.")
     for item in data["source_map"]:
@@ -163,7 +193,7 @@ def validate_data(data):
 class SavedDraft(FileModel):
     data: dict[str, Any]
     markdown: Text
-    tags: list[Annotated[str, StringConstraints(pattern=r"^#[A-Za-z][A-Za-z0-9]{0,39}$")]] = Field(max_length=3)
+    tags: list[Annotated[str, StringConstraints(pattern=r"^#[\w]{1,40}$")]] = Field(max_length=5)
     edited: bool
     editing: bool
     posts: list[SavedPost] = Field(max_length=7)
@@ -183,7 +213,7 @@ class SavedDraft(FileModel):
             if social:
                 expected_map = [{"block": p.id, "source_ids": p.source_ids} for p in self.posts]
             else:
-                original = (Draft if self.data["presentation"]["format"] == "devlog" else PostDraft).model_validate(self.data["draft"])
+                original = draft_model(self.data["presentation"]["format"]).model_validate(self.data["draft"])
                 expected_map = [{"block": label, "source_ids": block.source_ids} for label, block in blocks(original)]
             used = {source for item in expected_map for source in item["source_ids"]}
             if self.data["source_map"] != expected_map or self.data.get("omitted_source_ids", []) != sorted(set(self.data["sources"]) - used):
@@ -434,6 +464,8 @@ class GitReview(FileModel):
 class Session(FileModel):
     kind: Literal["patchpitch_session"]
     schema_version: Literal[1]
+    voice_bundle: dict | None = None
+    x_catalog: dict | None = None
     form: Form
     changes: list[PreparedChange] = Field(max_length=15)
     preview_text: Annotated[str, StringConstraints(max_length=6200)] | None
@@ -449,6 +481,11 @@ class Session(FileModel):
 
     @model_validator(mode="after")
     def consistent(self):
+        if (self.form.style == "voice") != (self.voice_bundle is not None):
+            raise ValueError("The selected voice mode needs its explicit saved bundle.")
+        if self.voice_bundle is not None:
+            from .voice import validate_bundle
+            validate_bundle(self.voice_bundle)
         ids = [c.id for c in self.changes]
         if ids != [f"C{i:02}" for i in range(1, len(ids) + 1)] or sum(len(c.text) for c in self.changes) > 6000:
             raise ValueError("Invalid saved selection.")
@@ -457,7 +494,7 @@ class Session(FileModel):
             stable = [r.stable_id for r in self.pack_context.source_references]
             if refs != ids or len(stable) != len(set(stable)):
                 raise ValueError("Source references must match the current selection.")
-        keys = [json.dumps([d.data["context"]["product"], d.data["context"]["release_label"], d.data["presentation"]["format"]], ensure_ascii=False, separators=(",", ":")) for d in self.drafts]
+        keys = [draft_key(d.data) for d in self.drafts]
         if len(keys) != len(set(keys)) or (self.active_key is not None and self.active_key not in keys):
             raise ValueError("Invalid active draft or duplicate saved drafts.")
         records = {r.id for r in self.records}

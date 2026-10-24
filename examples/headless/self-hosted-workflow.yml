@@ -1,0 +1,22 @@
+# Example to copy to .github/workflows/ after configuring your own runner.
+name: Prepare local campaign
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  prepare:
+    runs-on: [self-hosted, patchpitch]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          clean: false
+          fetch-depth: 0
+      # Provision Python, dependencies and Ollama/model on the runner first.
+      - run: python -m pip install --no-index --no-deps --no-build-isolation .
+      - run: python -m patchpitch run --job examples/headless/campaign.toml --out-root artifacts/campaigns --json
+        env:
+          PATCHPITCH_MODEL: gemma4:12b
+      # Private run snapshots/voice/attempts are deliberately not uploaded.
+      # Select reviewed publication files explicitly if you add artifact upload.

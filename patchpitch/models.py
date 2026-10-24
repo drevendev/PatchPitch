@@ -58,8 +58,12 @@ class PitchInput(StrictModel):
     voice_reference: Annotated[str, StringConstraints(max_length=1200)] = ""
     changes: list[Change] = Field(min_length=1, max_length=15)
     cta_text: Annotated[str, StringConstraints(max_length=300)] = ""
-    format: Literal["devlog", "community", "short"] = "devlog"
-    style: Literal["warm", "clear", "lively"] = "warm"
+    language: Literal["en", "ru"] = "en"
+    voice_bundle: dict | None = None
+    voice_register: Annotated[str, StringConstraints(min_length=1, max_length=100)] = "maker_announcement"
+    tag_allowlist: list[Annotated[str, StringConstraints(pattern=r"^#[\w]{1,40}$")]] = Field(default_factory=list, max_length=5)
+    format: Literal["devlog", "community", "short", "telegram"] = "devlog"
+    style: Literal["warm", "clear", "lively", "voice"] = "warm"
     auto_tags: bool = False
     confirmed: bool
     source_references: list[SourceReference] = Field(default_factory=list, max_length=15)
@@ -72,6 +76,13 @@ class PitchInput(StrictModel):
 
     @model_validator(mode="after")
     def check_changes(self):
+        if self.voice_bundle is not None:
+            from .voice import validate_bundle
+            validate_bundle(self.voice_bundle, language=self.language, format=self.format, register=self.voice_register)
+            if self.style != "voice" or self.voice_reference:
+                raise ValueError("Choose Quillgrain voice without a competing preset or prose sample.")
+        elif self.style == "voice":
+            raise ValueError("Load a Quillgrain voice export or choose a normal preset.")
         if not self.confirmed:
             raise ValueError("Confirm that the selected changes belong in this announcement.")
         if sum(len(c.text) for c in self.changes) > 6000:
@@ -117,7 +128,7 @@ class Draft(StrictModel):
     highlights: list[Block] = Field(min_length=0, max_length=3)
     details: list[Block] = Field(default_factory=list, max_length=4)
     note: Block | None = None
-    hashtags: list[Annotated[str, StringConstraints(pattern=r"^#[A-Za-z][A-Za-z0-9]{0,39}$")]] = Field(default_factory=list, max_length=3)
+    hashtags: list[Annotated[str, StringConstraints(pattern=r"^#[\w]{1,40}$")]] = Field(default_factory=list, max_length=5)
 
 
     @model_validator(mode="after")
@@ -128,9 +139,9 @@ class Draft(StrictModel):
 
 
 class PostDraft(StrictModel):
-    text: Annotated[str, StringConstraints(min_length=1, max_length=2200)]
+    text: Annotated[str, StringConstraints(min_length=1, max_length=4096)]
     source_ids: list[Annotated[str, StringConstraints(pattern=r"^C[0-9]{2}$")]] = Field(min_length=1, max_length=15)
-    hashtags: list[Annotated[str, StringConstraints(pattern=r"^#[A-Za-z][A-Za-z0-9]{0,39}$")]] = Field(default_factory=list, max_length=3)
+    hashtags: list[Annotated[str, StringConstraints(pattern=r"^#[\w]{1,40}$")]] = Field(default_factory=list, max_length=5)
 
 
 PITCH_SCHEMA = Draft.model_json_schema()
@@ -139,7 +150,7 @@ PITCH_SCHEMA = Draft.model_json_schema()
 
 
 class SocialPost(StrictModel):
-    text: Annotated[str, StringConstraints(min_length=1, max_length=2200)]
+    text: Annotated[str, StringConstraints(min_length=1, max_length=4096)]
     source_ids: list[Annotated[str, StringConstraints(pattern=r"^C[0-9]{2}$")]] = Field(min_length=1, max_length=15)
 
 
@@ -151,9 +162,19 @@ class SocialDraft(StrictModel):
     posts: list[SocialPost] = Field(min_length=1, max_length=7)
 
 
+class HashtagPostPlan(StrictModel):
+    id: Annotated[str, StringConstraints(pattern=r"^P0[1-7]$")]
+    topic: Annotated[str, StringConstraints(min_length=1, max_length=4096)]
+    source_ids: list[Annotated[str, StringConstraints(pattern=r"^C[0-9]{2}$")]] = Field(min_length=1, max_length=15)
+    hashtags: list[Annotated[str, StringConstraints(pattern=r"^#[\w]{1,40}$")]] = Field(min_length=6, max_length=6)
+
+
 class SocialInput(PitchInput):
     format: Literal["x_single", "x_thread"] = "x_single"
     auto_tags: Literal[False] = False
+    hashtag_policy: Literal["legacy", "x-six-v1"] = "legacy"
+    hashtag_catalog: dict | None = None
+    hashtag_plan: list[HashtagPostPlan] = Field(default_factory=list, max_length=7)
     intent: Literal["show_result", "build_story", "release", "ask_question"] = "show_result"
     post_count: int = Field(default=5, ge=3, le=7)
     operation: Literal["generate", "regenerate"] = "generate"
@@ -163,6 +184,21 @@ class SocialInput(PitchInput):
     @model_validator(mode="after")
     def check_social(self):
         from .social_count import estimate
+        if self.hashtag_policy == "x-six-v1":
+            from .hashtags import Catalog, canonical
+            if self.hashtag_catalog is None:
+                raise ValueError("Load an evidence-backed X hashtag catalog.")
+            catalog = Catalog.model_validate(self.hashtag_catalog)
+            expected = 1 if self.format == "x_single" else self.post_count
+            if self.hashtag_plan and ([p.id for p in self.hashtag_plan] != [f"P{i:02}" for i in range(1, expected + 1)]):
+                raise ValueError("Hashtag plan must match the complete post plan.")
+            for post in self.hashtag_plan:
+                if not set(post.source_ids) <= {c.id for c in self.changes if c.include}:
+                    raise ValueError("Tag plan cites an unselected fact.")
+                if len({canonical(t) for t in post.hashtags}) != 6:
+                    raise ValueError("Tag plan must contain six unique tags.")
+        elif self.hashtag_plan or self.hashtag_catalog:
+            raise ValueError("Legacy X requests cannot carry a six-tag plan.")
         if self.cta_text and estimate(self.cta_text)["characters"] + 3 > 280:
             raise ValueError("Shorten the call to action to leave room for the post.")
         ids = [p.id for p in self.thread_context]

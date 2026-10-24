@@ -34,6 +34,12 @@ def load_and_select(page,fmt="x_thread"):
     expect(page.locator("#product")).to_have_value("PatchPitch")
     assert not page.locator("#confirmed").is_checked()
     page.locator("#format").select_option(fmt)
+    # These regressions exercise saved 0.2 legacy drafts. New six-tag UI flows
+    # have their own catalog/plan/export tests in test_campaigns_browser.py.
+    if not page.locator("#legacy-x").is_checked():
+        page.locator("#x-tags-tools > summary").click()
+        page.locator("#legacy-x").check()
+        page.locator("#x-tags-tools > summary").click()
     page.locator("#confirmed").check()
 
 

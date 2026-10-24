@@ -67,6 +67,12 @@ def run_case(page,base,name,out,edit_file=None,interactive_review=False):
         page.locator("#fact-pack").select_option(pack);page.locator("#load-pack").click()
         page.wait_for_function("() => !busy && document.getElementById('product').value.length>0")
         page.locator("#format").select_option(fmt);page.locator("#intent").select_option(intent)
+        # This historical 0.2 pilot intentionally preserves its accepted tag-free
+        # inputs. New six-tag campaigns use the 0.3 catalog workflow.
+        if page.locator("#legacy-x").count():
+            page.locator("#x-tags-tools > summary").click()
+            page.locator("#legacy-x").check()
+            page.locator("#x-tags-tools > summary").click()
         page.locator("#style").select_option("clear")
         page.locator("#confirmed").check()
         with page.expect_response(lambda r:r.url==base+"/api/social",timeout=650000) as response:

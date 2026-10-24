@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "id": "patchpitch-030-development",
+  "version": "1",
+  "product": {
+    "name": "PatchPitch",
+    "description": "A local writing workflow that turns selected development facts into drafts for Telegram, X, DEV and GitHub."
+  },
+  "audience": "Developers preparing announcements for their own projects",
+  "release_label": "0.3.0 development",
+  "facts": [
+    {
+      "id": "cli_jobs",
+      "text": "Development progress on PatchPitch, an open-source Python developer tool: a non-interactive CLI automates draft generation from JSON or TOML jobs using the existing local Ollama model backend, without starting a browser or HTTP server.",
+      "include": true,
+      "kind": "internal",
+      "source_ref": "LICENSE, patchpitch/cli.py, patchpitch/jobs.py, patchpitch/campaigns.py",
+      "limitations": "This describes local development code, not a published 0.3.0 release. An installed local model is required."
+    },
+    {
+      "id": "checkpoints",
+      "text": "Campaigns retain input snapshots, original model responses and failed attempts on disk. Explicit resume continues unfinished steps; successful steps and edited export files are preserved.",
+      "include": true,
+      "kind": "internal",
+      "source_ref": "patchpitch/campaigns.py, patchpitch/run_store.py",
+      "limitations": "Changing source data or runtime uses a different run identity. Generation does not establish human editorial approval."
+    },
+    {
+      "id": "x_six_tags",
+      "text": "The new X path plans each post and selects exactly six tags from a user-supplied catalog with dated observations, topic terms and audience information. The application reserves their length before writing and validates the complete text.",
+      "include": true,
+      "kind": "internal",
+      "source_ref": "patchpitch/hashtags.py, patchpitch/social.py",
+      "limitations": "Missing or stale evidence blocks X rather than inventing popular tags. Matching uses lexical rules and needs meaning review. Length remains a conservative estimate; verify in X."
+    },
+    {
+      "id": "quillgrain_local",
+      "text": "The optional Quillgrain integration can verify an existing bundle or compile an explicitly chosen local pack. Each request checks language, register and channel and keeps the exact voice snapshot.",
+      "include": true,
+      "kind": "internal",
+      "source_ref": "patchpitch/voice.py, patchpitch/jobs.py",
+      "limitations": "The trusted Quillgrain 0.1.0rc3 engine must be installed separately. Structural compatibility is not proof of an authentic author voice."
+    },
+    {
+      "id": "platform_outputs",
+      "text": "The campaign runner produces Telegram posts, DEV articles and GitHub notes from selected facts. A separate explicit DEV adapter creates or updates a remote draft with published=false and retains a receipt.",
+      "include": true,
+      "kind": "internal",
+      "source_ref": "patchpitch/longform.py, patchpitch/publishers/dev.py, patchpitch/campaign_export.py",
+      "limitations": "DEV delivery needs an API key. Its automated checks use a test transport; they do not establish that a real remote draft has been created. Generation does not publish or advance a publication baseline."
+    },
+    {
+      "id": "exact_cli_example",
+      "text": "The following exact command runs the included four-platform development campaign without a browser. It is a usage example, not a benchmark:\n```text\npython -m patchpitch run --job examples/headless/all-four.toml --out-root artifacts/campaigns --json\n```",
+      "include": true,
+      "kind": "internal",
+      "source_ref": "docs/x-catalog.md and examples/headless/all-four.toml",
+      "limitations": "Run from a prepared checkout or use an absolute job path outside it. Ollama and an installed model are required. The dated X catalog needs a new evidence review after 30 days."
+    }
+  ]
+}

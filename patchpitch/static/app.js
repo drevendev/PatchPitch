@@ -2,12 +2,12 @@
 const $ = id => document.getElementById(id);
 let changes = [], previewText = null, previewTimer, result = null, currentMarkdown = "", edited = false, busy = false;
 const drafts = new Map();
-let currentTags = [];
+let currentTags = [], xCatalog = null;
 let packContext = null, socialPosts = [], unloadProtected = false, inputRevision = 0;
 const isSocial = format => ["x_single","x_thread"].includes(format);
-const formatNames = {devlog:"Devlog",community:"Community post",short:"Short post",x_single:"X Single",x_thread:"X Thread"};
-const formatHints = {devlog:"The full story, with every selected topic.",community:"A few useful changes, in a post for your community.",short:"One useful thought. 280 characters including your CTA and tags.",x_single:"One concrete thought. Edit, check sources and verify in X.",x_thread:"A connected story. Each card stays independently editable."};
-$("format").addEventListener("change", () => {const social=isSocial($("format").value);$("format-hint").textContent=formatHints[$("format").value];$("tag-count-hint").textContent=social?"off for X":$("format").value==="short" ? "up to 1" : "up to 3";$("social-options").hidden=!social;$("post-count-row").hidden=$("format").value!=="x_thread";$("auto-tags").disabled=social;});
+const formatNames = {dev_article:"DEV article",github_release_notes:"GitHub release notes",telegram:"Telegram post",devlog:"Devlog",community:"Community post",short:"Short post",x_single:"X Single",x_thread:"X Thread"};
+const formatHints = {dev_article:"A full article from selected facts, with DEV metadata.",github_release_notes:"Source-backed release/development notes for GitHub.",telegram:"Русский или English · paragraphs, up to 4096 characters including CTA/tags. Copy preserves text and Markdown markers; apply rich formatting and custom emoji manually in Telegram.",devlog:"The full story, with every selected topic.",community:"A few useful changes, in a post for your community.",short:"One useful thought. 280 characters including your CTA and tags.",x_single:"One concrete thought. Edit, check sources and verify in X.",x_thread:"A connected story. Each card stays independently editable."};
+$("format").addEventListener("change", () => {const social=isSocial($("format").value);$("format-hint").textContent=formatHints[$("format").value];$("tag-count-hint").textContent=social?"6 from catalog":$("format").value==="telegram"?"up to 5":$("format").value==="short" ? "up to 1" : "up to 3";$("social-options").hidden=!social;$("post-count-row").hidden=$("format").value!=="x_thread";$("auto-tags").disabled=social;});
 // Animate disclosures in normal document flow, including rapid reversals.
 // No captured image or text layer is scaled during a transition.
 const disclosureAnimations = new WeakMap();
@@ -137,9 +137,10 @@ function setBusy(value) {
   $("pitch-form").setAttribute("aria-busy", String(value));
   for (const control of $("pitch-form").querySelectorAll("input,textarea,select")) control.disabled = value;
   for (const control of document.querySelectorAll("#edit,#editor,#tag-chips button,#saved-drafts button,#record-publication,#published-url")) control.disabled=value;
-  for (const control of document.querySelectorAll("#load-pack,#fact-pack,#pack-file,#social-posts button,#social-posts textarea,#social-posts input")) control.disabled=value || control.dataset.boundaryDisabled==="true";
+  for (const control of document.querySelectorAll("#voice-tools input,#voice-tools button,#load-pack,#fact-pack,#pack-file,#social-posts button,#social-posts textarea,#social-posts input")) control.disabled=value || control.dataset.boundaryDisabled==="true";
   for (const control of document.querySelectorAll("#session-tools input,#session-tools button,#git-tools input,#git-tools button,#git-tools select,#git-tools textarea")) control.disabled=value;
   if(typeof syncGitButtons === "function") syncGitButtons();
+  if(!value && typeof showVoice === "function") showVoice();
   if(!value && isSocial($("format").value)) $("auto-tags").disabled=true;
 }
 $("generate").addEventListener("click",()=>{closeDisclosure($("selection-panel"));});
@@ -154,7 +155,7 @@ function saveCurrent() {
 function protectSession(){if(!unloadProtected){window.addEventListener("beforeunload",warnUnload);unloadProtected=true;}}
 document.addEventListener("input",protectSession);
 function warnUnload(event){if(!hasSessionContent())return;event.preventDefault();event.returnValue=true;}
-function contextKey(format,context={product:$("product").value.trim(),release_label:$("release").value.trim()}){return JSON.stringify([context.product,context.release_label,format]);}
+function contextKey(format,context={product:$("product").value.trim(),release_label:$("release").value.trim()}){return JSON.stringify(context.target_id?[context.product,context.release_label,format,context.target_id]:[context.product,context.release_label,format]);}
 function characterCount() {
   const limit=result?.presentation?.limit;
   $("character-count").hidden=!limit;
@@ -184,9 +185,10 @@ function render(data, saved=null) {
   $("empty-state").hidden = true; $("result").hidden = false; $("result-tools").hidden = false;
   $("editor").hidden = true; $("editor-label").hidden = true; $("draft-view").hidden = false; $("edited-label").hidden = true; $("edit").textContent = "Edit draft";
   $("timing").textContent = `${data.meta.returned_model ?? data.meta.model ?? "Model identity unknown"} · ${data.meta.elapsed_seconds.toFixed(1)}s · generated locally`;
-  $("output-preset").textContent=`${data.context.product} · ${data.context.release_label || "Unversioned"} · ${data.presentation?.format_label || "Devlog"} / ${data.presentation?.style_label || "Warm"}`;
+  $("output-preset").textContent=`${data.context.product} · ${data.context.release_label || "Unversioned"} · ${data.presentation?.format_label || "Devlog"} / ${data.presentation?.style_label || "Warm"} · ${data.context.language || "en"}${data.context.voice ? " · " + data.context.voice.packs.at(-1).id + " / " + data.context.voice.packs.at(-1).version + " · " + data.context.voice.build_id.slice(0,12) : ""}`;
   $("draft-view").replaceChildren();
   if(data.presentation && data.presentation.format!=="devlog") {
+    if(typeof data.draft.title==="string"){const heading=document.createElement("h3");heading.textContent=data.draft.title;$("draft-view").append(heading);}
     const prose=document.createElement("p");prose.className="post-prose";prose.textContent=data.draft.text;$("draft-view").append(prose);
   } else {
   const title = document.createElement("h3"); title.textContent = blockText(data.draft.title);
@@ -246,14 +248,18 @@ $("pitch-form").addEventListener("submit", async event => {
     saveCurrent();
     if (drafts.get(contextKey($("format").value))?.edited && !confirm("Generate a new draft and replace your edited text? Copy or download it first if you want to keep it.")) return;
     const body = {product:{name:$("product").value,description:$("description").value},audience:$("audience").value,release_label:$("release").value,voice_reference:$("voice").value,changes:changes.map(({id,text,include}) => ({id,text,include})),cta_text:$("cta").value,format:$("format").value,style:$("style").value,auto_tags:$("auto-tags").checked,confirmed:true,writing_goal:$("writing-goal").value};
+    body.language=$("language").value;
+    body.tag_allowlist=$("tag-allowlist").value.trim().split(/\s+/).filter(Boolean);
+    if(voiceBundle){body.voice_bundle=structuredClone(voiceBundle);body.voice_register=voiceBundle.context.register;body.voice_reference="";}
     const social=isSocial(body.format);
     if(packContext)for(const k of ["source_references","pack_id","pack_version","pack_sha256","source_context"])if(packContext[k]!==undefined)body[k]=structuredClone(packContext[k]);
     body.context_overrides=contextOverrides();
     if(social)Object.assign(body,{auto_tags:false,intent:$("intent").value,post_count:Number($("post-count").value)});
+    if(social && !$("legacy-x").checked){if(!xCatalog)throw new Error("Load an evidence catalog for six X hashtags, or explicitly choose legacy formatting.");Object.assign(body,{hashtag_policy:"x-six-v1",hashtag_catalog:structuredClone(xCatalog)});}
     setBusy(true); const start = performance.now(); $("status").textContent="Writing with local Gemma… 0.0s";
     submittedBody=body;started=start;
     const timer = setInterval(() => $("status").textContent=`Writing with local Gemma… ${((performance.now()-start)/1000).toFixed(1)}s`, 200);
-    try {const data = await jsonRequest(social?"/api/social":"/api/pitch",body);rememberGeneration(body,{response:data},start);data.media_note=$("media-note").value;render(data);$("status").textContent="Your draft is ready to review. Nothing has been published.";}
+    try {const data = await jsonRequest(social?"/api/social":["dev_article","github_release_notes"].includes(body.format)?"/api/longform":"/api/pitch",body);rememberGeneration(body,{response:data},start);data.media_note=$("media-note").value;render(data);$("status").textContent="Your draft is ready to review. Nothing has been published.";}
     finally {clearInterval(timer);}
   } catch (e) {if(submittedBody)rememberGeneration(submittedBody,{error:e},started);error(e.message);$("status").textContent="Your input and any previous draft are still here. Review this attempt below or retry manually.";}
   finally {setBusy(false);}
@@ -265,8 +271,8 @@ function openEditor(restoring=false) {
 }
 $("edit").addEventListener("click",()=>openEditor());
 $("editor").addEventListener("input", () => {if(busy)return;currentMarkdown=$("editor").value;edited=true;characterCount();saveCurrent();});
-$("copy").addEventListener("click", () => copyText(isSocial(result?.presentation?.format)?socialPlain():currentMarkdown));
-$("download").addEventListener("click", () => {const url=URL.createObjectURL(new Blob([currentMarkdown],{type:"text/markdown;charset=utf-8"}));const link=document.createElement("a");link.href=url;link.download=exportName(result);link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);$("status").textContent="Markdown downloaded. Nothing has been published.";});
+$("copy").addEventListener("click", async () => {try {if(isSocial(result?.presentation?.format))await checkSocialExport();await copyText(isSocial(result?.presentation?.format)?socialPlain():currentMarkdown);} catch(e){error(e.message);}});
+$("download").addEventListener("click", async () => {if(isSocial(result?.presentation?.format)){try{await checkSocialExport();}catch(e){error(e.message);return;}}const url=URL.createObjectURL(new Blob([currentMarkdown],{type:"text/markdown;charset=utf-8"}));const link=document.createElement("a");link.href=url;link.download=exportName(result);link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);$("status").textContent="Markdown downloaded. Nothing has been published.";});
 fetch("/api/health").then(r=>r.json()).then(data => {$("model-status").textContent=data.ollama==="ready" ? `${data.model} · local` : "Ollama needs attention · local";}).catch(()=>{$("model-status").textContent="Local connection unavailable";});
 
 function contextOverrides() {

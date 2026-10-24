@@ -3,6 +3,8 @@ import re
 from .validation import guidance_requirements
 
 FORMATS = {
+    "telegram": {"label": "Telegram post", "limit": 4096,
+                 "instruction": "Write one Telegram post in connected paragraphs, normally 150–250 words. Speak directly to the author's own channel readers, in the first person when supplied facts authorize it. Start with the actual thing the author did, rather than an abstract project progress report. Keep the supplied voice's colloquial register; do not turn it into a third-person feature overview. A short personal opening is allowed only when supported by supplied facts. Explain how the thing works and why the author uses it. Preserve line breaks. Optional **emphasis** and ~~strikethrough~~ are allowed, not required. No headings or checklist unless specifically useful. Source IDs and hashtags belong only in their arrays, never prose. Do not invent jokes or copy catchphrases from samples. Preserve historical vs new status explicitly when supplied; do not call an old patch new. Finish with ordinary prose, never leftover JSON syntax or escaped schema fragments."},
     "devlog": {"label": "Devlog", "limit": None,
                "instruction": "Write the full release announcement using the supplied outline. Cover every selected topic and its meaningful limits."},
     "community": {"label": "Community post", "limit": 1600,
@@ -11,6 +13,7 @@ FORMATS = {
               "instruction": "Write a short social post in roughly 25–35 words. Start with the product name and ONE simple useful change; place any required guidance after that benefit. Choose a change that fits with its necessary qualifications. If a complex feature cannot fit accurately, choose a simpler one. No title, list, Markdown, source-ID annotations, links or hashtags in the text field. Do not repeat the version label unless essential. Do not try to summarize every source. Prefer one complete, specific thought over a vague list."},
 }
 STYLES = {
+    "voice": {"label": "Quillgrain voice", "instruction": "Use the selected Quillgrain author voice. No generic tone preset."},
     "warm": {"label": "Warm", "instruction": "Use a warm, thoughtful maker voice. A little character, concrete details, no hype or invented lore. Respect the supplied voice sample for rhythm only."},
     "clear": {"label": "Clear", "instruction": "Use calm, direct, factual language. Lead with what the reader can now do. Avoid metaphors, sales adjectives and exclamation marks; keep the product's own terminology."},
     "lively": {"label": "Lively", "instruction": "Use brisk, upbeat, specific language with varied sentence rhythm. Keep enthusiasm restrained: no superlatives, urgency, exaggerated benefits or invented claims. At most one exclamation mark."},
@@ -18,7 +21,7 @@ STYLES = {
 
 
 def tag_limit(request):
-    return 1 if request.format == "short" else 3
+    return 5 if request.format == "telegram" else 1 if request.format == "short" else 3
 
 
 def tag_candidates(request):
@@ -29,6 +32,8 @@ def tag_candidates(request):
     """
     if not request.auto_tags:
         return []
+    if request.tag_allowlist:
+        return list(dict.fromkeys(request.tag_allowlist))
     words = re.findall(r"[A-Za-z0-9]+", request.product.name)
     name = "".join(w[:1].upper() + w[1:] for w in words)
     candidates = ["#" + name] if re.fullmatch(r"[A-Za-z][A-Za-z0-9]{0,39}", name) else []

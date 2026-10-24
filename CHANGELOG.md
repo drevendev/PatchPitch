@@ -1,5 +1,31 @@
 # PatchPitch local development log
 
+## Unreleased — 0.3.0.dev0 unattended campaigns
+
+- Add an installable Python CLI for strict JSON/TOML jobs, shared local generation,
+  persistent run/attempt files, explicit resume and nonblocking process locks.
+- Preserve accepted responses across interruption/export gaps and keep publication
+  edits on resume. Derive scheduled run directories from the full input digest.
+- Support committed Git extraction without UI, disclose machine-selected facts,
+  and bind saved candidate selections to source and candidate digests.
+- Add evidence-backed six-tag X planning, deterministic catalog selection and
+  full-post budget checks; validate manual exports in CLI and studio. Preserve
+  explicit legacy X workflows and old session files.
+- Include a dated public X observation ledger/catalog and a four-platform job.
+  Constrain model prose to the space left by six tags and the final CTA.
+- Compile chosen Quillgrain local packs or verify imported bundles with explicit
+  language/register/channel. Preserve per-request voice snapshots and optional
+  engine installation.
+- Add DEV articles/GitHub notes, editable publication files and campaign-to-studio
+  session export. Add explicit draft-only DEV delivery with receipts, ownership
+  checks and unknown-outcome reconciliation.
+- Reconcile uncertain DEV writes when the API omits AI disclosure, retaining the
+  original outgoing payload and updating the same owned draft without duplicate POSTs.
+- Add a pinned Quillgrain integration CI job that fails on skipped checks.
+- Add offline automation/API/browser/package tests and scheduling examples.
+  Real-model quality, remote DEV draft verification and release publication remain
+  separate checks; no public Release or platform publication is implied.
+
 ## Unreleased — first-run documentation
 
 - README starts with a first run that needs no model: the recorded demo, then a

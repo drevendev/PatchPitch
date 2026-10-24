@@ -1,0 +1,319 @@
+{
+  "schema_version": "patchpitch.public-x-observations/v1",
+  "id": "patchpitch-x-2026-10-22",
+  "observed_at": "2026-10-22T14:33:49Z",
+  "window_days": 366,
+  "method": "Purposive manual review of indexed primary post snippets and indexed public mirror pages. No authenticated X search or live X API. Post timestamps are decoded from linked status IDs, not independently confirmed timestamps. Relative mirror times are not used.",
+  "limitations": [
+    "Small, non-random historical sample; supports topical usage only, not current trends or reach.",
+    "Direct X pages returned 403/cache misses. Mirror snapshots can be stale or inaccurate; original links are retained for rechecking.",
+    "One author may contribute multiple posts. Counts are deduplicated by status ID and authors by casefolded handle.",
+    "No view, engagement, click or hashtag-lift metrics imported. Observed_at is the review time, not the post time.",
+    "Relevance is an editorial judgment for developers announcing their own local tools. The finance-oriented post is a negative sample."
+  ],
+  "posts": [
+    {
+      "id": "S01",
+      "author": "jugdeepshah",
+      "url": "https://x.com/jugdeepshah/status/2068578273240797554",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-06-21T06:14:27.323000Z",
+      "tags": [
+        "#BuildInPublic",
+        "#Python",
+        "#Automation"
+      ],
+      "summary": "Announces a Python social-post automation tool and its OAuth prerequisite.",
+      "relevant": true,
+      "access": "indexed_primary",
+      "access_source": "https://x.com/jugdeepshah/status/2068578273240797554"
+    },
+    {
+      "id": "S02",
+      "author": "aerowindwalker",
+      "url": "https://x.com/aerowindwalker/status/2061320253557125183",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-06-01T05:33:40.583000Z",
+      "tags": [
+        "#rust",
+        "#devtools",
+        "#ast",
+        "#codeanalysis",
+        "#mcp",
+        "#logcompression"
+      ],
+      "summary": "Announces a CLI log compressor with reversible replay.",
+      "relevant": true,
+      "access": "indexed_primary",
+      "access_source": "https://x.com/aerowindwalker/status/2061320253557125183"
+    },
+    {
+      "id": "S03",
+      "author": "FM_yassin",
+      "url": "https://x.com/FM_yassin/status/2062562452290564395",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-06-04T15:49:43.840000Z",
+      "tags": [
+        "#GitHub",
+        "#OpenSource",
+        "#Trading",
+        "#MachineLearning",
+        "#Python",
+        "#AI",
+        "#Automation",
+        "#Developer"
+      ],
+      "summary": "Promotes trading repositories; excluded from developer announcement relevance counts.",
+      "relevant": false,
+      "access": "indexed_primary",
+      "access_source": "https://x.com/FM_yassin/status/2062562452290564395"
+    },
+    {
+      "id": "S04",
+      "author": "CLIhub",
+      "url": "https://x.com/CLIhub/status/2038089158351081527",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-03-29T03:01:35.873000Z",
+      "tags": [
+        "#CLI",
+        "#DevTools",
+        "#OpenSource"
+      ],
+      "summary": "Reports a Qwen Code CLI nightly release.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://w.twstalker.com/hashtag/%23DevTools"
+    },
+    {
+      "id": "S05",
+      "author": "CLIhub",
+      "url": "https://x.com/CLIhub/status/2038043858668253349",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-03-29T00:01:35.587000Z",
+      "tags": [
+        "#CLI",
+        "#DevTools",
+        "#OpenSource"
+      ],
+      "summary": "Reports a GitHub CLI release.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://w.twstalker.com/hashtag/%23DevTools"
+    },
+    {
+      "id": "S06",
+      "author": "chenzeling4",
+      "url": "https://x.com/chenzeling4/status/2038074421663924670",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-03-29T02:03:02.373000Z",
+      "tags": [
+        "#DevTools",
+        "#Markdown",
+        "#OpenSource"
+      ],
+      "summary": "Describes a document-to-Markdown conversion tool.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://w.twstalker.com/hashtag/%23DevTools"
+    },
+    {
+      "id": "S07",
+      "author": "chenzeling4",
+      "url": "https://x.com/chenzeling4/status/2038106863057658098",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-03-29T04:11:57.004000Z",
+      "tags": [
+        "#DevTools",
+        "#AI",
+        "#OpenSource"
+      ],
+      "summary": "Describes a codebase context/search tool.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://w.twstalker.com/hashtag/%23DevTools"
+    },
+    {
+      "id": "S08",
+      "author": "jitendraballa",
+      "url": "https://x.com/jitendraballa/status/2038113671285805261",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-03-29T04:39:00.212000Z",
+      "tags": [
+        "#buildinpublic",
+        "#indiehacker",
+        "#devtools",
+        "#feedback"
+      ],
+      "summary": "Discusses concrete developer feedback on an early documentation tool.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://w.twstalker.com/hashtag/%23DevTools"
+    },
+    {
+      "id": "S09",
+      "author": "InsiderLlm",
+      "url": "https://x.com/InsiderLlm/status/2035521850521071644",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-03-22T01:00:01.988000Z",
+      "tags": [
+        "#LLM",
+        "#Ollama",
+        "#LocalAI"
+      ],
+      "summary": "Discusses whether particular local language models remain useful.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://ngntipkolamrenang.twstalker.com/hashtag/%23LocalAI"
+    },
+    {
+      "id": "S10",
+      "author": "fiendteamhq",
+      "url": "https://x.com/fiendteamhq/status/2035488440033157576",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-03-21T22:47:16.307000Z",
+      "tags": [
+        "#LocalAI",
+        "#OpenSource"
+      ],
+      "summary": "Discusses locally controlled open-source creative tooling.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://ngntipkolamrenang.twstalker.com/hashtag/%23LocalAI"
+    },
+    {
+      "id": "S11",
+      "author": "InsiderLlm",
+      "url": "https://x.com/InsiderLlm/status/2035461454170890376",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-03-21T21:00:02.376000Z",
+      "tags": [
+        "#Ollama",
+        "#LocalAI"
+      ],
+      "summary": "Explains local model memory/KV-cache diagnosis.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://ngntipkolamrenang.twstalker.com/hashtag/%23LocalAI"
+    },
+    {
+      "id": "S12",
+      "author": "tarekalaaddin",
+      "url": "https://x.com/tarekalaaddin/status/2035430914965000699",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-03-21T18:58:41.262000Z",
+      "tags": [
+        "#LocalAI",
+        "#Ollama",
+        "#OpenSource"
+      ],
+      "summary": "Discusses a personal local tool stack; savings claims were not imported.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://ngntipkolamrenang.twstalker.com/hashtag/%23LocalAI"
+    },
+    {
+      "id": "S13",
+      "author": "InsiderLlm",
+      "url": "https://x.com/InsiderLlm/status/2035401054633009390",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-03-21T17:00:02.004000Z",
+      "tags": [
+        "#Ollama",
+        "#LLM",
+        "#LocalAI"
+      ],
+      "summary": "Discusses disk space and management of multiple Ollama models.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://ngntipkolamrenang.twstalker.com/hashtag/%23LocalAI"
+    },
+    {
+      "id": "S14",
+      "author": "chaudhry_osama",
+      "url": "https://x.com/chaudhry_osama/status/2035367751930331146",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-03-21T14:47:42.021000Z",
+      "tags": [
+        "#localAI",
+        "#privacy"
+      ],
+      "summary": "Compares offline local tools including a scriptable CLI for developers.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://ngntipkolamrenang.twstalker.com/hashtag/%23LocalAI"
+    },
+    {
+      "id": "S15",
+      "author": "Ikon_dev",
+      "url": "https://x.com/Ikon_dev/status/2038229780462539112",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-03-29T12:20:22.797000Z",
+      "tags": [
+        "#buildinpublic",
+        "#automation"
+      ],
+      "summary": "Shares development progress on automatic follow-up/status tracking.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://w.twstalker.com/hashtag/%23Automation"
+    },
+    {
+      "id": "S16",
+      "author": "MGCreative_",
+      "url": "https://x.com/MGCreative_/status/2038224691207323821",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-03-29T12:00:09.424000Z",
+      "tags": [
+        "#PythonDevelopment",
+        "#Automation"
+      ],
+      "summary": "Offers Python workflow automation services.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://w.twstalker.com/hashtag/%23Automation"
+    },
+    {
+      "id": "S17",
+      "author": "yuji_naramoto",
+      "url": "https://x.com/yuji_naramoto/status/2048175710573900047",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-04-25T23:01:57.322000Z",
+      "tags": [
+        "#BuildInPublic"
+      ],
+      "summary": "Describes investing in automated GitHub deployment as a solo developer.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://w.twstalker.com/hashtag/%23BuildInPublic"
+    },
+    {
+      "id": "S18",
+      "author": "Founder_Benji",
+      "url": "https://x.com/Founder_Benji/status/2048171551644877288",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-04-25T22:45:25.756000Z",
+      "tags": [
+        "#BuildInPublic"
+      ],
+      "summary": "Describes work on subscription reconciliation using cron.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://w.twstalker.com/hashtag/%23BuildInPublic"
+    },
+    {
+      "id": "S19",
+      "author": "solver8299",
+      "url": "https://x.com/solver8299/status/2048169389468651688",
+      "observed_at": "2026-10-22T14:33:49Z",
+      "posted_at_from_snowflake": "2026-04-25T22:36:50.253000Z",
+      "tags": [
+        "#golang",
+        "#buildinpublic"
+      ],
+      "summary": "Explains design choices behind a language-model tracing tool.",
+      "relevant": true,
+      "access": "indexed_mirror",
+      "access_source": "https://w.twstalker.com/hashtag/%23BuildInPublic"
+    }
+  ]
+}

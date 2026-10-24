@@ -1,6 +1,7 @@
 import re
 
 from .models import Draft, PitchInput, PostDraft
+from . import voice
 
 
 class DraftError(ValueError):
@@ -47,6 +48,7 @@ def covered_list_counts(source, prose):
 def required_note_ids(request: PitchInput) -> list[str]:
     # Narrow, explicit owner instructions; this does not infer release safety.
     pattern=r"\b(?:export|make|keep|create|take)\b[^.]{0,60}\bbackup\b|\b(?:keep|save|download)\s+(?:(?:an?|the|your)\s+)?export\b|\bnot backward compatible\b|\bbreaking change\b"
+    pattern += r"|(?:резервн\w*\s+копи|б[эе]кап\w*|несовместим\w*|критическ\w*\s+изменен)"
     return [c.id for c in request.changes if c.include and re.search(pattern,c.text,re.I)]
 
 
@@ -54,15 +56,21 @@ def guidance_requirements(request):
     """Narrow lexical checks for explicit backup guidance, not semantic proof."""
     ids=set(required_note_ids(request))
     source=" ".join(c.text for c in request.changes if c.id in ids)
-    if not re.search(r"\bbackup\b|\bexport\b",source,re.I):
+    if not re.search(r"\bbackup\b|\bexport\b|резервн\w*\s+копи|б[эе]кап\w*|экспорт\w*",source,re.I):
         return []
-    checks=[("backup or export",r"\bbackup\b|\bexport\b")]
+    checks=[("backup or export",r"\bbackup\b|\bexport\b|резервн\w*\s+копи|б[эе]кап\w*|экспорт\w*")]
     for label, pattern in [
         ("Settings",r"\bsettings\b"),
         ("changing or moving devices",r"\b(?:chang\w*|mov\w*|switch\w*|transfer\w*)\b[^.!?]{0,35}\bdevices?\b"),
         ("clearing browser data",r"\b(?:clear\w*|delet\w*|wip\w*|eras\w*)\b[^.!?]{0,35}\b(?:browser\s+)?data\b"),
     ]:
-        if re.search(pattern,source,re.I):checks.append((label,pattern))
+        if re.search(pattern,source,re.I):
+            if getattr(request, "language", "en") == "ru":
+                pattern = {"Settings": r"settings|настройк", "changing or moving devices": r"(?:смен|замен|переход|перенос|друг|меня)[^.]{0,50}устройств", "clearing browser data": r"(?:очист|чист|удал)[^.]{0,40}(?:данн|браузер)"}.get(label,pattern)
+            checks.append((label,pattern))
+    if getattr(request, "language", "en") == "ru":
+        for label, pattern in [("Settings",r"настройк"),("changing or moving devices",r"(?:смен|замен|перенос|друг|меня)[^.]{0,50}устройств"),("clearing browser data",r"(?:очист|чист|удал)[^.]{0,40}(?:данн|браузер)")]:
+            if re.search(pattern,source,re.I) and not any(x[0]==label for x in checks):checks.append((label,pattern))
     return checks
 
 
@@ -141,7 +149,7 @@ def validate_draft(draft: Draft, request: PitchInput) -> list[str]:
     allowed = {c.id for c in request.changes if c.include}
     sources = {c.id: c.text for c in request.changes if c.include}
     context = " ".join([request.product.name, request.product.description, request.release_label])
-    warnings = []
+    warnings = ["Russian semantic checks are partial: manually verify meaning, limitations and translated terms."] if request.language == "ru" else []
     used={source for _,block in blocks(draft) for source in block.source_ids}
     unused=allowed-used
     if unused:
@@ -150,8 +158,15 @@ def validate_draft(draft: Draft, request: PitchInput) -> list[str]:
         prose = block_text(block)
         if re.search(r"\bC\d{2}\b|(?<!\w)#[A-Za-z]",prose):
             raise DraftError("The model put source IDs or hashtags inside its prose. Please generate again.")
-        if label != "Title" and not re.search(r"[.!?…][\"'’”)]?$", prose):
+        if request.format not in {"telegram", "dev_article", "github_release_notes"} and label != "Title" and not re.search(r"[.!?…][\"'’”)]?$", prose):
             raise DraftError(f"{label} appears cut off or unfinished. Please generate again.")
+        if request.format == "telegram" and re.search(r'\\["{}]|["}],\s*"?\s*$|["}],\s*(?:else|source_ids|hashtags)\s*:', prose):
+            raise DraftError("The model left JSON fragments inside the post. Generate again manually.")
+        escaped_break = re.search(r'\\n\\n|\\[nr]\s*(?:\r?\n|$)', prose)
+        if request.format == "telegram" and escaped_break and not any(escaped_break[0].strip() in c.text for c in request.changes if c.include):
+            raise DraftError("The model left escaped paragraph separators inside the post. Generate again manually.")
+        if voice.copied_reference(prose, request):
+            raise DraftError("The model copied a passage from a style reference. Generate again manually; sample wording is not a phrase bank.")
         if len(set(block.source_ids)) != len(block.source_ids):
             raise DraftError(f"{label} contains duplicate source IDs. Please generate again.")
         if not set(block.source_ids) <= allowed:

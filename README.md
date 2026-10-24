@@ -72,6 +72,46 @@ through `PATCHPITCH_MODEL`; a valid schema does not guarantee equal writing qual
 A Russian walkthrough and validation record is available in
 [Сессии и DevLog из Git](docs/sessions-git-devlogs.md).
 
+## Next release specification
+
+The [0.3.0 specification](docs/0.3.0-spec.md) sets the next release priorities:
+Telegram, Twitter/X, DEV and GitHub; unattended CLI runs; exactly six evidence-backed
+hashtags per X post; integrated Quillgrain profiles; and preparing the release's
+own DEV article through PatchPitch. It defines planned behavior and acceptance
+criteria. The implementation is in development as `0.3.0.dev0`.
+
+## Run campaigns without UI
+
+Install this checkout with `python -m pip install .`, prepare local Ollama with
+your chosen model, then run the CLI without starting the web server:
+
+```text
+python -m patchpitch run --job examples/headless/campaign.toml --out-root artifacts/campaigns --plan --json
+python -m patchpitch run --job examples/headless/campaign.toml --out-root artifacts/campaigns --json
+```
+
+The CLI accepts JSON/TOML jobs, keeps attempts/checkpoints on disk, resumes failed
+steps explicitly and preserves publication edits. `--out-root` chooses a stable
+directory from the inputs so unchanged scheduled jobs reuse their result. CLI
+dependencies do not require FastAPI or a browser; `pip install ".[ui]"` also
+installs the studio server. New X campaigns require a dated observation catalog
+for six relevant tags per post. Quillgrain can compile a selected local pack;
+DEV draft delivery is a separate explicit command.
+
+See [headless setup, scheduling, Git, tags, voice and exports](docs/headless.md).
+The [four-platform example](examples/headless/all-four.toml) includes an
+[observed X catalog and sampling notes](docs/x-catalog.md).
+The sample prepares development drafts; it does not announce a published release.
+
+## Optional author voice and Russian Telegram
+
+Load a local Quillgrain `voice-bundle.json`, choose Russian / Telegram and write
+with the selected author context instead of a generic tone preset. Session files
+preserve the exact voice snapshot and your edits. The engine is optional; see
+[setup, import and limitations](docs/quillgrain-voice.md). This is a local working
+implementation, not a published new release or proof of stylistic fidelity.
+
+
 ## What's new in 0.2.0 (review candidate)
 
 **X Single** and **X Thread** formats, **Reviewed fact packs** with provenance, and
@@ -177,7 +217,9 @@ marked partial; facts from unselected files never enter the extraction request.
 2. Review Include checkboxes. Planned, internal, blocked, unknown and Unreleased
    notes start excluded. Confirm what belongs in the announcement.
 3. Choose a **format**, **style** and optional **Auto tags**, then click
-   **Write the announcement**. One click makes one local model request.
+   **Write the announcement**. Ordinary formats make one local model request.
+   The new six-tag X workflow first plans topics, then writes the selected plan;
+   both original responses are retained. It makes at most two requests.
 4. Read the draft and **Source notes**. The original facts stay visible for inspection.
 5. Review the result, remove unwanted tag chips, then **Edit draft**,
    **Copy Markdown** or **Download Markdown**.

@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timezone
 
 from pydantic import ValidationError
-from . import generator, telemetry
+from . import generator, telemetry, voice
 from .provenance import source_snapshot, source_context
 from .formats import STYLES
 from .models import PostDraft, SocialDraft, SocialInput
@@ -45,9 +45,12 @@ def build_payload(request: SocialInput):
     post_schema["source_ids"].update(items={"type": "string", "enum": allowed}, uniqueItems=True, maxItems=len(allowed))
     reserve = estimate(request.cta_text)["characters"] + 2 if request.cta_text else 0
     intent = "Explain committed development progress without claiming release or availability." if request.writing_goal == "development" and request.intent == "release" else INTENTS[request.intent]
+    length_instruction = ("Use the strict text_budget in each post_plan entry; finish well below it. "
+        if request.hashtag_policy == "x-six-v1" else
+        f"Aim for 150–200 conservative weighted characters per post. Last/target post text budget: {max(1, 240-reserve)}. ")
     instructions = (PROMPT + "\nINTENT: " + intent + "\nSTYLE: " + STYLES[request.style]["instruction"]
-        + f"\nReturn exactly {count} post(s). Aim for 150–200 conservative weighted characters per post. "
-        + f"Last/target post text budget: {max(1, 240-reserve)}. Final 280 limit includes the separately appended CTA. "
+        + f"\nReturn exactly {count} post(s). " + length_instruction
+        + "Final 280 limit includes the separately appended tags and CTA. "
         + "Use fewer words; keep a complete useful thought. Write the story as prose, not a checklist.")
     if request.writing_goal == "development":
         instructions += "\nDEVELOPMENT PROGRESS: These are committed changes, not proof of release or deployment. Do not announce them as shipped or available to users, or invent test results."
@@ -60,9 +63,26 @@ def build_payload(request: SocialInput):
             "For a single post, ALL this guidance belongs in that one post. Allocate space for it first "
             "when planning, then one short useful change sentence. Omit the version label and secondary "
             "feature counts if needed; never omit backup location or circumstances.")
-    data = {"product": request.product.model_dump(), "audience": request.audience, "release_label": request.release_label,
+    instructions = instructions.replace("English X draft", "Russian X draft") if request.language == "ru" else instructions
+    instructions += voice.style_instructions(request)
+    data = {"voice_examples": voice.examples(request), "product": request.product.model_dump(), "audience": request.audience, "release_label": request.release_label,
             "voice_reference": request.voice_reference,
             "selected_changes": [{"id": c.id, "text": c.text} for c in request.changes if c.include]}
+    if request.hashtag_policy == "x-six-v1":
+        plans = [p for p in request.hashtag_plan if request.operation != "regenerate" or p.id == request.target_post_id]
+        budgets = []
+        for p in plans:
+            is_last = p.id == request.hashtag_plan[-1].id if request.operation == "generate" else True
+            suffix = "\n\n" + " ".join(p.hashtags) + ("\n\n" + request.cta_text if is_last and request.cta_text else "")
+            budgets.append({"id": p.id, "topic": p.topic, "source_ids": p.source_ids,
+                            "text_budget": max(0, 280 - estimate(suffix)["characters"] - 8)})
+        instructions += ("\nSIX-TAG PLAN: Follow each post's topic and EXACT source_ids from post_plan. "
+                         "The application appends six selected tags, then any CTA. Do not put tags in prose. "
+                         "Each text_budget includes writing headroom. Keep one short useful point; omit redundant details.")
+        # A shared character ceiling uses the smallest card budget, including
+        # the last card's CTA. Weighted Unicode/URL limits are checked on return.
+        schema["$defs"]["SocialPost"]["properties"]["text"]["maxLength"] = max(1, min(p["text_budget"] for p in budgets))
+        data["post_plan"] = budgets
     if request.operation == "regenerate":
         instructions += "\nRewrite ONLY target_post_id, preserving its role and avoiding repetition of the other posts. Existing posts are context, not factual evidence."
         data.update(target_post_id=request.target_post_id, existing_thread=[p.model_dump() for p in request.thread_context])
@@ -75,6 +95,19 @@ def build_payload(request: SocialInput):
 
 
 def generate(request: SocialInput):
+    if request.hashtag_policy == "x-six-v1" and not request.hashtag_plan:
+        from .hashtags import generate_campaign
+        return generate_campaign(request, request.hashtag_catalog, lambda step, req, fn: fn(req))
+    if request.hashtag_policy == "x-six-v1":
+        from .hashtags import select, canonical
+        from .run_store import RunError
+        for plan in request.hashtag_plan:
+            try:
+                selected = select(request.hashtag_catalog, request, plan.model_dump())
+                if {canonical(t) for t in plan.hashtags} != {canonical(t["tag"]) for t in selected["selected"]}:
+                    raise RunError("X_HASHTAG_SELECTION", "The tag plan differs from the catalog selection.", 4)
+            except RunError as exc:
+                raise generator.GenerationError(exc.code, exc.message, 422) from exc
     raw = None
     payload = None
     start = time.perf_counter()
@@ -102,13 +135,14 @@ def generate(request: SocialInput):
                 "warnings": list(dict.fromkeys(warnings)), "omitted_source_ids": sorted(set(selected)-used),
                 "presentation": {"format": request.format, "format_label": "X Thread" if request.format == "x_thread" else "X Single",
                     "style": request.style, "style_label": STYLES[request.style]["label"], "limit": 280, "estimated": True, "cta_text": request.cta_text},
-                "context": {"product": request.product.name, "release_label": request.release_label,
+                "context": {"language": request.language, "channel": voice.channel_for(request.format), "voice": voice.identity(request), "product": request.product.name, "release_label": request.release_label,
                     "generated_at": datetime.now(timezone.utc).isoformat(), "pack_id": request.pack_id, "pack_version": request.pack_version, "pack_sha256": request.pack_sha256, **source_context(request)},
                 "meta": {"mode": "LIVE_MODEL", "model": returned, "configured_model": generator.MODEL, "returned_model": returned,
                     "elapsed_seconds": elapsed, "options": payload["options"], "thinking_enabled": payload.get("think", False),
                     "prompt_sha256": hashlib.sha256(payload["messages"][0]["content"].encode()).hexdigest(),
                     "request_sha256": hashlib.sha256(json.dumps(payload, sort_keys=True, ensure_ascii=False).encode()).hexdigest(),
                     **generator.response_usage(raw)}}
+            result["presentation"]["hashtag_policy"] = request.hashtag_policy
             if observation.trace_id:
                 result["meta"]["sentry_trace_id"] = observation.trace_id
             return result
@@ -142,7 +176,22 @@ def validate_response(raw, request):
                 raise DraftError("The model inserted a link into prose. Keep the exact owner CTA separate.")
             pid = request.target_post_id if request.operation == "regenerate" else f"P{i:02}"
             final_post = i == len(draft.posts) if request.operation == "generate" else True
-            text = post.text + ("\n\n" + request.cta_text if final_post and request.cta_text else "")
+            tag_line = ""
+            if request.hashtag_policy == "x-six-v1":
+                plan = next(p for p in request.hashtag_plan if p.id == pid)
+                if set(post.source_ids) != set(plan.source_ids):
+                    raise DraftError("The post changed its planned source references.")
+                tag_line = "\n\n" + " ".join(plan.hashtags)
+            text = post.text + tag_line + ("\n\n" + request.cta_text if final_post and request.cta_text else "")
+            if tag_line:
+                from .hashtags import validate_text
+                try:
+                    validate_text(text, plan.hashtags)
+                except Exception as exc:
+                    from .run_store import RunError
+                    if not isinstance(exc, RunError):
+                        raise
+                    raise generator.GenerationError(exc.code, exc.message, 422) from exc
             count = estimate(text)
             if count["over_limit"]:
                 raise generator.GenerationError("format_overflow", f"Post {pid}: estimated {count['characters']} / 280 including CTA. Select fewer facts or regenerate manually; no text was truncated.")

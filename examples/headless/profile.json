@@ -1,0 +1,10 @@
+{
+  "kind": "patchpitch_profile",
+  "schema_version": 1,
+  "product": {
+    "name": "PatchPitch",
+    "description": "A local writing workflow that turns selected development facts into drafts for Telegram, X, DEV and GitHub."
+  },
+  "audience": "Developers preparing announcements for their own projects",
+  "cta_text": "https://github.com/drevendev/PatchPitch"
+}

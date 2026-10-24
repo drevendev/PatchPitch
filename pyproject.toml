@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools==84.2.0", "wheel==0.48.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "patchpitch"
+version = "0.3.0.dev0"
+description = "Local, source-backed writing for Telegram, X, DEV and GitHub"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+dependencies = ["pydantic==2.14.1", "sentry-sdk==2.72.0"]
+
+[project.optional-dependencies]
+ui = ["fastapi==0.146.0", "uvicorn==0.54.0"]
+
+[project.scripts]
+patchpitch = "patchpitch.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["patchpitch*"]
+
+[tool.setuptools.package-data]
+patchpitch = ["prompts/*.txt", "fact_packs/*.json", "schemas/*.json", "static/*", "static/fonts/*"]

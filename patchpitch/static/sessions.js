@@ -2,7 +2,7 @@
 
 const saveFileBytes=32_000_000;
 
-const sessionFields=["product","description","audience","release","voice","cta","changes","format","style","intent","writing-goal"];
+const sessionFields=["product","description","audience","release","voice","cta","changes","format","style","intent","writing-goal","language","tag-allowlist"];
 
 function downloadJSON(value,filename){
   const url=URL.createObjectURL(new Blob([JSON.stringify(value,null,2)+"\n"],{type:"application/json;charset=utf-8"}));
@@ -10,11 +10,11 @@ function downloadJSON(value,filename){
 }
 function currentForm(){
   const form=Object.fromEntries(sessionFields.map(id=>[id.replaceAll("-","_"),$(id).value]));
-  return {...form,media_note:$("media-note").value,post_count:Number($("post-count").value),auto_tags:$("auto-tags").checked};
+  return {...form,legacy_x:$("legacy-x").checked,media_note:$("media-note").value,post_count:Number($("post-count").value),auto_tags:$("auto-tags").checked};
 }
 function sessionSnapshot(){
   saveCurrent();
-  return {kind:"patchpitch_session",schema_version:1,form:currentForm(),changes:structuredClone(changes),
+  return {kind:"patchpitch_session",schema_version:1,voice_bundle:structuredClone(voiceBundle),x_catalog:structuredClone(xCatalog),form:currentForm(),changes:structuredClone(changes),
     preview_text:previewText,pack_context:structuredClone(packContext),drafts:structuredClone([...drafts.values()]),
     active_key:result?contextKey(result.presentation?.format||"devlog",result.context):null,
     records:structuredClone(generationRecords),record_choice:$("record-choice").value||null,
@@ -23,7 +23,7 @@ function sessionSnapshot(){
 }
 function hasSessionContent(){return Boolean(
   ["product","description","audience","release","voice","cta","changes","media-note"].some(id=>$(id).value)
-  || changes.length || drafts.size || generationRecords.length || hasGitContent());}
+  || voiceBundle || changes.length || drafts.size || generationRecords.length || hasGitContent());}
 
 async function saveFile(kind){
   if(busy)return;
@@ -65,7 +65,9 @@ async function openFile(file,kind){
 
 function restoreSession(saved){
   inputRevision++;clearTimeout(previewTimer);closeDisclosure($("selection-panel"));
-  for(const id of sessionFields)$(id).value=saved.form[id.replaceAll("-","_")];
+  for(const id of sessionFields)$(id).value=saved.form[id.replaceAll("-","_")] ?? (id === "language" ? "en" : "");
+  voiceBundle=structuredClone(saved.voice_bundle ?? null);showVoice();
+  xCatalog=structuredClone(saved.x_catalog ?? null);showCatalog();$("legacy-x").checked=saved.form.legacy_x ?? false;
   $("media-note").value=saved.form.media_note;$("post-count").value=String(saved.form.post_count);
   $("auto-tags").checked=saved.form.auto_tags;$("format").dispatchEvent(new Event("change"));
   packContext=structuredClone(saved.pack_context);

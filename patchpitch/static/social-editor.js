@@ -90,7 +90,7 @@ function renderSocialCards(){
     const refs=document.createElement("p");refs.className="helper";refs.textContent="Generated sources: "+post.source_ids.join(", ")+" · recheck after edits.";
     const actions=document.createElement("div");actions.className="card-actions";
     function button(text,fn,disabled=false){const b=document.createElement("button");b.type="button";b.textContent=text;b.className="secondary";b.dataset.boundaryDisabled=String(disabled);b.disabled=busy||disabled;b.addEventListener("click",fn);actions.append(b);return b;}
-    button("Copy this post",()=>copyText(post.text));
+    button("Copy this post",async()=>{try{await checkSocialExport();await copyText(post.text);}catch(e){error(e.message);}});
     const move=delta=>{if(busy)return;const target=index+delta;[socialPosts[index],socialPosts[target]]=[socialPosts[target],socialPosts[index]];edited=true;renderSocialCards();saveSocial();$("text-"+post.id).focus();};
     if(socialPosts.length>1){button("Move up",()=>move(-1),index===0);button("Move down",()=>move(1),index===socialPosts.length-1);}
     button("Regenerate this post",()=>regeneratePost(post.id));
@@ -141,3 +141,18 @@ function renderSocialWarnings(){
   for(const warning of warnings){const p=document.createElement("p");p.textContent=warning;$("warnings").append(p);}
   $("warnings").hidden=false;
 }
+
+function showCatalog(){
+  $("x-catalog-status").textContent=xCatalog?`${xCatalog.id} / ${xCatalog.version} · ${xCatalog.tags.length} candidates. Dated evidence and relevance are checked for every post.`:"Load a catalog with dated observations to prepare six relevant tags per X post.";
+}
+$("x-catalog").addEventListener("change",async()=>{
+  const file=$("x-catalog").files[0];if(!file||busy)return;
+  setBusy(true);error("");
+  try{if(file.size>1000000)throw new Error("X catalogs must be at most 1 MB.");const candidate=JSON.parse(await file.text());await jsonRequest("/api/hashtags/validate",candidate);xCatalog=candidate;$("legacy-x").checked=false;$("confirmed").checked=false;showCatalog();protectSession();}
+  catch(e){error(e.message);}finally{setBusy(false);$("x-catalog").value="";}
+});
+async function checkSocialExport(){
+  if(result?.input_snapshot?.hashtag_policy!=="x-six-v1")return;
+  await jsonRequest("/api/hashtags/check",{input_snapshot:result.input_snapshot,posts:socialPosts});
+}
+showCatalog();

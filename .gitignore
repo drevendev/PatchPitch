@@ -11,6 +11,9 @@ __pycache__/
 *.pem
 playwright-report/
 test-results/
+build/
+dist/
+*.egg-info/
 # Owner keeps submission prose, handoff conversations and all media local.
 /submission/
 /handoff/

@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.concurrency import run_in_threadpool
@@ -14,7 +15,8 @@ from . import __version__
 from . import generator
 from . import telemetry
 from .models import PitchInput, PrepareInput, SocialInput
-from . import social, fact_packs, sessions, git_import
+from . import social, fact_packs, sessions, git_import, voice, hashtags, longform
+from .run_store import RunError
 from .validation import prepare_lines
 from .build import source_hash
 
@@ -36,7 +38,8 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 generation_lock = threading.Lock()
 # Provenance and current-thread context are outside the model's fact budget, but
 # can exceed the original 32 KB transport cap within their existing field limits.
-REQUEST_LIMITS = {"/api/session/validate": sessions.SAVE_FILE_BYTES, "/api/pitch": 1_000_000, "/api/social": 1_000_000}
+REQUEST_LIMITS = {"/api/voice/validate": 512_000,"/api/session/validate": sessions.SAVE_FILE_BYTES, "/api/pitch": 1_000_000, "/api/social": 1_000_000}
+REQUEST_LIMITS.update({"/api/hashtags/validate": 1_000_000, "/api/hashtags/check": 1_000_000, "/api/longform": 1_000_000})
 
 
 @app.middleware("http")
@@ -65,6 +68,20 @@ async def local_only(request: Request, call_next):
     return response
 
 
+@app.exception_handler(RequestValidationError)
+async def invalid_input(request, exc):
+    # Never echo private voice bundles/input through FastAPI validation errors.
+    return JSONResponse({"detail": [{"loc": e["loc"], "msg": e["msg"], "type": e["type"]} for e in exc.errors()]}, status_code=422)
+
+
+@app.post("/api/voice/validate")
+def validate_voice(request: dict):
+    try:
+        return {"summary": voice.summary(request)}
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
 @app.get("/")
 def index():
     return FileResponse(STATIC / "index.html")
@@ -81,6 +98,35 @@ def health():
                 "prompt_hashes": {fmt:hashlib.sha256(generator.read_prompt(fmt).encode()).hexdigest() for fmt in ("devlog","community","short")}}
     except generator.GenerationError as exc:
         return {"app": __version__, "runtime_source_sha256": RUNTIME_SOURCE_SHA256, "mode": "LOCAL", "sentry_enabled": telemetry.enabled(), "ollama": exc.code, "model": generator.MODEL, "options": generator.OPTIONS, "message": exc.message}
+
+
+@app.post("/api/hashtags/validate")
+def validate_catalog(request: hashtags.Catalog):
+    return {"id": request.id, "version": request.version, "tags": len(request.tags)}
+
+
+@app.post("/api/hashtags/check")
+def check_social_export(request: dict):
+    try:
+        original = SocialInput.model_validate(request["input_snapshot"])
+        if original.hashtag_policy != hashtags.POLICY:
+            raise RunError("LEGACY_X", "This draft uses legacy X formatting; review it separately.", 4)
+        plans = {p.id: p for p in original.hashtag_plan}
+        posts = [sessions.SavedPost.model_validate(p) for p in request["posts"]]
+        if len(posts) != len(plans) or {p.id for p in posts} != set(plans):
+            raise RunError("X_POST_PLAN", "The current post list differs from the saved plan.", 4)
+        for post in posts:
+            hashtags.validate_export_post(original, post.model_dump())
+        return {"status": "passed", "policy": hashtags.POLICY}
+    except RunError as exc:
+        return JSONResponse({"error": exc.as_dict()}, status_code=422)
+    except (ValueError, KeyError, TypeError):
+        raise HTTPException(422, "Invalid current X export or input snapshot.")
+
+
+@app.post("/api/longform")
+async def longform_pitch(request: longform.LongformInput):
+    return await run_generation(request, longform.generate)
 
 
 @app.post("/api/prepare")
@@ -155,5 +201,7 @@ async def run_generation(request, generate):
         if exc.evidence is not None:
             body["evidence"] = exc.evidence
         return JSONResponse(body, status_code=exc.status)
+    except RunError as exc:
+        return JSONResponse({"error": exc.as_dict()}, status_code=422)
     finally:
         generation_lock.release()

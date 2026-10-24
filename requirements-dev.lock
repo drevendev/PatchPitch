@@ -23,8 +23,10 @@ pyee==14.0.0
 Pygments==2.21.0
 pytest==9.1.1
 sentry-sdk==2.72.0
+setuptools==84.2.0
 starlette==1.9.0
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 urllib3==2.8.0
 uvicorn==0.54.0
+wheel==0.48.0
