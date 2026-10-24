@@ -40,6 +40,7 @@ generation_lock = threading.Lock()
 # can exceed the original 32 KB transport cap within their existing field limits.
 REQUEST_LIMITS = {"/api/voice/validate": 512_000,"/api/session/validate": sessions.SAVE_FILE_BYTES, "/api/pitch": 1_000_000, "/api/social": 1_000_000}
 REQUEST_LIMITS.update({"/api/hashtags/validate": 1_000_000, "/api/hashtags/check": 1_000_000, "/api/longform": 1_000_000})
+REQUEST_LIMITS["/api/editorial"] = 1_000_000
 
 
 @app.middleware("http")
@@ -205,3 +206,7 @@ async def run_generation(request, generate):
         return JSONResponse({"error": exc.as_dict()}, status_code=422)
     finally:
         generation_lock.release()
+
+
+from .editorial_api import register as register_editorial
+register_editorial(app)

@@ -1,5 +1,19 @@
 # PatchPitch local development log
 
+## Unreleased — 0.4.0 editorial article pipeline
+
+- Add a separate persistent editorial workspace shared by CLI and studio: reviewed
+  plans, Quillgrain section proposals, manual edits, candidate diffs, locked sections,
+  atomic revisions, explicit review and stale-result protection.
+- Add real media imports, portable private workspaces and escaped local/full DEV-export
+  previews with MP4 controls, audio and WebVTT; preserve the external-player fallback
+  for DEV rather than claiming arbitrary inline MP4 support.
+- Add draft-only editorial DEV delivery with cover, remote-edit conflicts and retained
+  uncertain-write reconciliation; publication remains a separate user action.
+- Bind three X announcement candidates to the reviewed article, with six evidenced
+  tags including #DEVCommunity, deterministic final-URL replacement and 23-character
+  URL reservation. Retain originals and support one-post edits/reaffirmation.
+
 ## Unreleased — CSP-safe browser test waits
 
 - Replace string-evaluated Playwright polling with retrying locator assertions in

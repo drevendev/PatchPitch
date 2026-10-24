@@ -1,0 +1,28 @@
+schema_version = "patchpitch.editorial-job/v1"
+campaign_id = "patchpitch-editorial-example"
+language = "en"
+writing_goal = "release"
+narrator = "first_person_singular"
+angle = "Why I wanted local drafting, what the recorded runs showed, and one exact example."
+max_model_requests = 32
+accept_valid_candidates = false
+hashtag_catalog = "x-catalog-2026-10-24.json"
+x_angles = ["Useful local developer workflow", "A recorded model experiment", "A reproducible CLI example"]
+
+[source]
+kind = "reviewed_fact_pack"
+path = "../headless/release-facts.json"
+
+[voice]
+provider = "quillgrain"
+mode = "local_pack"
+path = "voice"
+register = "maker_announcement"
+max_chars = 8000
+
+[x_voice]
+provider = "quillgrain"
+mode = "local_pack"
+path = "voice"
+register = "maker_announcement"
+max_chars = 8000

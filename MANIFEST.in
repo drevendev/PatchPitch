@@ -4,3 +4,4 @@ recursive-include docs *.md
 recursive-include examples *.json *.toml *.yml *.md
 recursive-include scripts *.py
 recursive-include tests/fixtures *.json
+recursive-include tests/fixtures *.png *.gif *.mp4 *.vtt

@@ -38,8 +38,52 @@ def parser():
     action.add_argument("--language", choices=["en", "ru"], default="ru")
     action.add_argument("--format", choices=["telegram", "x_single", "dev_article", "github_release_notes"], default="telegram")
     schema = commands.add_parser("schema")
-    schema.add_argument("--kind", choices=["job", "hashtags", "voice"], default="job")
+    schema.add_argument("--kind", choices=["job", "hashtags", "voice", "editorial-job", "editorial-document", "editorial-mutation"], default="job")
     schema.add_argument("--out", required=True)
+    editorial = commands.add_parser("editorial", help="Plan, revise and preview an article workspace")
+    actions = editorial.add_subparsers(dest="action", required=True, parser_class=Parser)
+    for name in ("init", "status", "outline", "draft", "revise", "accept", "apply", "preview", "validate", "export", "deliver", "x", "bind-url", "remote", "recover", "reject", "import-markdown", "edit-x"):
+        sub = actions.add_parser(name)
+        sub.add_argument("--json", action="store_true")
+        if name == "init":
+            sub.add_argument("--config", required=True)
+            sub.add_argument("--out", required=True)
+        else:
+            sub.add_argument("--work", required=True)
+        if name in {"outline", "draft", "revise", "x", "bind-url", "accept", "edit-x", "import-markdown"}:
+            sub.add_argument("--operation-id")
+        if name in {"outline", "draft", "revise", "x"}:
+            sub.add_argument("--dry-run", action="store_true")
+        if name in {"outline", "revise", "x", "accept", "edit-x", "import-markdown"}:
+            sub.add_argument("--expected-revision", required=name == "accept")
+        if name == "revise":
+            sub.add_argument("--section", required=True)
+            sub.add_argument("--instruction-file", required=True)
+        if name in {"accept", "recover", "reject"}:
+            sub.add_argument("--candidate", required=True)
+        if name == "apply":
+            sub.add_argument("--patch", required=True)
+        if name in {"preview", "export"}:
+            sub.add_argument("--out", required=True)
+        if name == "export":
+            sub.add_argument("--kind", choices=["publication", "workspace"], default="publication")
+        if name in {"x", "edit-x"}:
+            sub.add_argument("--post")
+        if name == "edit-x":
+            sub.add_argument("--text-file")
+            sub.add_argument("--reaffirm", action="store_true")
+        if name == "import-markdown":
+            sub.add_argument("--file", required=True)
+            sub.add_argument("--source-map")
+        if name == "deliver":
+            sub.add_argument("--channel", choices=["dev"], required=True)
+            sub.add_argument("--mode", choices=["draft"], required=True)
+            sub.add_argument("--existing-id", type=int)
+            sub.add_argument("--remote-hash")
+            sub.add_argument("--preflight", action="store_true")
+        if name == "bind-url":
+            sub.add_argument("--url", required=True)
+            sub.add_argument("--verify", action="store_true")
     for cmd in commands.choices.values():
         cmd.add_argument("--json", action="store_true")
     action.add_argument("--json", action="store_true")
@@ -47,6 +91,8 @@ def parser():
 
 
 def dispatch(args):
+    if args.command == "editorial":
+        return dispatch_editorial(args), 0
     from . import campaigns
     if args.command == "run":
         return campaigns.run(args.job, args.out, args.plan, args.out_root)
@@ -62,7 +108,9 @@ def dispatch(args):
     if args.command == "schema":
         from .jobs import Job, VoiceConfig
         from .hashtags import Catalog
-        model = {"job": Job, "voice": VoiceConfig, "hashtags": Catalog}[args.kind]
+        from .editorial_models import Config, Document, Mutation
+        model = {"job": Job, "voice": VoiceConfig, "hashtags": Catalog, "editorial-job": Config,
+                 "editorial-document": Document, "editorial-mutation": Mutation}[args.kind]
         write_json(args.out, model.model_json_schema())
         return {"status": "exported", "artifacts": {"schema": str(Path(args.out).resolve())}}, 0
     if args.command == "voice":
@@ -80,6 +128,56 @@ def dispatch(args):
         from .publishers.dev import deliver
         return deliver(args.run, args.target, args.existing_id), 0
     raise RunError("ARGUMENT_ERROR", "Unknown command.")
+
+
+def dispatch_editorial(args):
+    from . import editorial, editorial_generation as writing, editorial_render as rendering
+    from .run_store import read_json
+    if args.action == "init":
+        return editorial.initialize(args.config, args.out)
+    if args.action == "status":
+        return editorial.status(args.work, include_document=True)
+    if args.action in {"outline", "revise", "x"}:
+        instruction = ""
+        if args.action == "revise":
+            from .campaign_export import text_file
+            instruction = text_file(args.instruction_file, 12000)
+        return writing.propose(args.work, "section" if args.action == "revise" else args.action,
+            args.operation_id, getattr(args, "section", None) or getattr(args, "post", None), instruction, args.expected_revision, args.dry_run)
+    if args.action == "draft":
+        return writing.draft(args.work, args.operation_id, args.dry_run)
+    if args.action == "accept":
+        return writing.accept(args.work, args.candidate, args.expected_revision, args.operation_id)
+    if args.action in {"recover", "reject"}:
+        return getattr(writing, args.action)(args.work, args.candidate)
+    if args.action == "apply":
+        return editorial.apply(args.work, read_json(args.patch))
+    if args.action in {"preview", "export"}:
+        if args.action == "export" and args.kind == "workspace":
+            from .editorial_import import bundle
+            return bundle(args.work, args.out)
+        return rendering.export(args.work, args.out)
+    if args.action == "import-markdown":
+        from .editorial_import import import_markdown
+        return import_markdown(args.work, args.file, read_json(args.source_map) if args.source_map else None,
+                               args.operation_id, args.expected_revision)
+    if args.action == "edit-x":
+        from .editorial_x import edit_series
+        from .campaign_export import text_file
+        return edit_series(args.work, args.post, text_file(args.text_file, 2000) if args.text_file else None,
+                           args.reaffirm, args.operation_id, args.expected_revision)
+    if args.action == "validate":
+        return editorial.validate(args.work)
+    if args.action == "deliver":
+        from .editorial_dev import deliver
+        return deliver(args.work, args.existing_id, args.remote_hash, args.preflight)
+    if args.action == "remote":
+        from .editorial_dev import inspect
+        return inspect(args.work)
+    if args.action == "bind-url":
+        from .editorial_x import bind_url
+        return bind_url(args.work, args.url, args.verify, args.operation_id)
+    raise RunError("ARGUMENT_ERROR", "Unknown editorial operation.")
 
 
 def main(argv=None):
