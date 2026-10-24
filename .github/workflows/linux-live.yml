@@ -1,8 +1,12 @@
 name: Linux real-model acceptance
 on:
-  push:
-    branches: [codex/linux-live-030-20261024]
-    paths: [.github/workflows/linux-live.yml, scripts/linux_live_campaign.py]
+  workflow_dispatch:
+    inputs:
+      model:
+        description: '12B is verified; 4B is a comparison that failed acceptance'
+        type: choice
+        default: gemma4:12b
+        options: [gemma4:12b, gemma3:4b]
 permissions:
   contents: read
 jobs:
@@ -10,7 +14,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      PATCHPITCH_MODEL: gemma3:4b
+      PATCHPITCH_MODEL: ${{ inputs.model }}
       PATCHPITCH_SENTRY_DSN: ''
       OLLAMA_HOST: 127.0.0.1:11434
       OLLAMA_MODELS: /tmp/patchpitch-live-models

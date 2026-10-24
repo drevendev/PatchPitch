@@ -122,3 +122,16 @@ If a write response is lost, `delivery.json` records an uncertain outcome and bl
 ## Integration CI
 
 The separate `quillgrain` job checks out engine revision `8af17f979c0ad20163bec5fd247279a7a6f5addf`, verifies version `0.1.0rc3`, runs voice/browser/Git-campaign checks and rejects skipped tests. The normal suite still verifies that ordinary workflows work without the optional engine. CI inference is mocked; this does not replace a Linux live-model run.
+
+## Verified Linux live configuration
+
+The [24 October Linux live run](linux-live-2026-10-24.md) completed all four targets from a clean installed package with real `gemma4:12b` inference and no UI. On the tested CPU runner, set `PATCHPITCH_TIMEOUT=600`: the DEV request took 497.921 seconds, exceeding the ordinary 420-second default. Model digest, inputs, exact timings, raw evidence and the rejected Gemma 3 4B comparison are in the record. Do not assume equivalent results from an arbitrary smaller model.
+
+```sh
+export PATCHPITCH_MODEL=gemma4:12b
+export PATCHPITCH_TIMEOUT=600
+export PATCHPITCH_SENTRY_DSN=''
+python -m patchpitch run --job /absolute/checkout/examples/headless/all-four.toml --out-root /absolute/campaigns --json </dev/null
+```
+
+Start the prepared local Ollama server and install the selected model explicitly beforehand. The optional `.github/workflows/linux-live.yml` acceptance harness provisions an ephemeral runner/model separately and saves public-input evidence; it is manual-only after the experiment to avoid downloading a multi-GB model on ordinary pushes. Generation never calls a publisher.
