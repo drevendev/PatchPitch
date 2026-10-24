@@ -14,7 +14,7 @@ retain their contracts. Source import reads existing runs without rewriting them
 | --- | --- |
 | Plan and document | Stable IDs/tombstones, source omissions, metadata, typed blocks, compare-and-swap, atomic immutable revisions and explicit reviews |
 | Writing | Quillgrain snapshots, outline/section proposals and diffs, accept/reject, locked sections, saved raw responses, bounded requests and explicit recovery/retry |
-| Editing | Paragraph/list/code/media blocks, ordering, per-section edits, historical restore and private workspace backup; neighboring unsaved fields survive a save/reload |
+| Editing | Paragraph/list/code/media blocks, ordering, per-section edits, historical restore and private workspace backup; neighboring unsaved fields survive a save/reload; switching folders clears previous preview/X cards |
 | Media | Original PNG/JPEG/WebP/GIF/MP4/WebVTT imports, signatures/hashes/limits, alt/cover/captions, portable local playback, desktop/mobile preview under strict CSP |
 | DEV | Draft-only POST/PUT, public media mappings, cover DTO comparison, ownership/publication guards, remote-edit conflicts, uncertain-response reconciliation and explicit visual review |
 | X | Three checkpointed standalone candidates, one-card rewrites/manual edits, six dated evidence-backed tags including publication-context `#DEVCommunity`, stale dependencies, typed URL slot and offline final export |
@@ -94,9 +94,9 @@ publication exports and from this public report.
 
 ## Verification and remaining review
 
-The final local suite passed **435 tests, zero skips, in 167.22s**, with installed
+The final local suite passed **436 tests, zero skips, in 168.21s**, with installed
 Quillgrain and actual Chromium; 15 existing dependency deprecation warnings remain.
-Results are recorded in `artifacts/editorial-final-suite.xml`. CI runs base
+Results are recorded in `artifacts/editorial-final-suite.xml`; the four editorial browser cases also passed a targeted final repeat, including full candidate source-map visibility before acceptance. CI runs base
 tests without the optional engine, a separate pinned Quillgrain job with skipped-case
 rejection, and wheel/source builds plus clean installed CLI smoke checks. Inspect the
 draft PR checks for the exact final commit; the first implementation commit also

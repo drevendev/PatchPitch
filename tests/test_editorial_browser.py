@@ -66,6 +66,9 @@ def test_editorial_ui_uses_shared_candidate_acceptance(ui_url, workspace, model)
         page.locator("#review-sources").click()
         page.locator("#outline").click()
         expect(page.locator(".candidate")).to_have_count(1)
+        page.locator(".candidate details summary").click()
+        expect(page.locator(".candidate details pre")).to_contain_text('"source_ids"')
+        expect(page.locator(".candidate details pre")).to_contain_text('"C01"')
         page.get_by_role("button", name="Accept this candidate", exact=True).click()
         expect(page.locator("#plan-title")).to_have_value("My local drafts")
         page.get_by_role("button", name="I reviewed this plan", exact=True).click()
@@ -100,4 +103,31 @@ def test_saving_one_section_retains_other_unsaved_edits(ui_url, workspace):
         page.locator('[data-section="S02"]').get_by_role("button", name="Save this section", exact=True).click()
         expect(page.locator("#block-B02")).to_have_value("My unsaved second section stays here.")
         assert e.load(workspace)[2].sections[0].blocks[0].text == "My saved first section."
+        browser.close()
+
+
+def test_switching_workspace_clears_previous_preview_and_x_cards(ui_url, workspace, model):
+    from patchpitch import editorial_generation as writing
+    complete(workspace)
+    result = writing.propose(workspace, "x", "first-workspace-series")
+    writing.accept(workspace, result["candidate"], result["revision_id"])
+    second = workspace.parent / "second-workspace"
+    e.initialize(workspace.parent / "editorial.json", second)
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page()
+        page.goto(ui_url + "/editorial")
+        page.locator("#work").fill(str(workspace)); page.locator("#open").click()
+        expect(page.locator("#x-posts .section-card")).to_have_count(3)
+        page.locator("#x-edit-P02").fill("My unsaved second announcement")
+        page.reload(); page.locator("#open").click()
+        expect(page.locator("#x-edit-P02")).to_have_value("My unsaved second announcement")
+        page.locator("#discard-buffer").click()
+        expect(page.locator("#x-edit-P02")).not_to_have_value("My unsaved second announcement")
+        page.locator("#build-preview").click()
+        expect(page.locator("#preview-link")).to_be_visible()
+        page.locator("#work").fill(str(second)); page.locator("#open").click()
+        expect(page.locator("#state")).to_contain_text("sources_ready")
+        expect(page.locator("#x-posts .section-card")).to_have_count(0)
+        expect(page.locator("#preview-link")).to_be_hidden()
         browser.close()
