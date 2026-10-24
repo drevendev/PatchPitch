@@ -1,6 +1,8 @@
 # Linux real-model acceptance — 24 October 2026
 
-Status: **Linux four-target runtime acceptance passed with Gemma 4 12B.** The independent 4B comparison failed output acceptance. No platform post, remote draft, software release or release tag was created.
+Current project status: **0.3.0 released**; see the [release closeout](release-closeout-0.3.0-2026-10-24.md). Final metadata/facts, package checks, tag and GitHub Release are complete. The experiment below retains its original development-version evidence. Its former release blockers and release holds describe that stage; remaining model/media/catalog follow-up is in the [backlog](backlog.md).
+
+Experiment status: **Linux four-target runtime acceptance passed with Gemma 4 12B.** The independent 4B comparison failed output acceptance. No platform post, remote draft, software release or release tag was created by this experiment.
 
 The owner authorized GitHub Actions because this Windows host has no WSL/Docker environment or running Ollama. Work is isolated on `codex/linux-live-030-20261024`; main remains at `f2ecdd2`. The tested application/package sources are unchanged from that development commit. The branch adds only the acceptance workflow and evidence harness.
 
@@ -48,7 +50,7 @@ X tags: `#DevTools #LocalAI #LLM #Ollama #OpenSource #Automation`. Input, model 
 
 All **50** downloaded evidence-manifest hashes were verified. Raw local evidence is under ignored `artifacts/linux-live-2026-10-24/gemma4-12b/`; independent editorial notes are `artifacts/linux-live-2026-10-24/gemma4-12b-editorial-review.json`. Agent reading found minor Telegram grammar issues and functional README-like longform prose. These are unpublished test drafts, not newly approved publication copy. The fixture's historical delivery-test caveats should be refreshed for final release facts.
 
-## Remaining 0.3.0 blockers
+## Release-gate assessment at the experiment stage
 
 - **Linux live gate H01 is now closed for the documented 12B/600-second configuration.** Fresh installed-package execution, real inference, four accepted outputs, validation, export and unchanged reuse are established. This run does not include Quillgrain voice generation; Linux Quillgrain compilation/scope/browser coverage is supplied separately by its passing integration CI job.
 - **Model/runtime support must stay explicit.** Gemma 3 4B failed this six-fact campaign and must not be advertised as equivalent. Preserve evidence-backed six-tag and source-coverage rejection. A claim of general 4B support requires separate improvements and a passing live run; it does not negate the verified 12B result.

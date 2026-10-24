@@ -460,5 +460,6 @@ resize defect; it is not a general visual-quality guarantee.
 closing music tail, fade to silence and room after the last spoken line. It does
 not substitute for listening to the finished demo.
 
+Release follow-up: [0.3.0 release closeout](docs/release-closeout-0.3.0-2026-10-24.md).
 Publication follow-up: [23 October article closeout](docs/publication-closeout-2026-10-23.md).
 Deferred work: [project backlog](docs/backlog.md).

@@ -1,6 +1,6 @@
 # Article publication closeout — 23 October 2026
 
-Status: closed for this publication cycle, as confirmed by the owner. This does not mark the 0.3.0 software release as shipped.
+Status: closed for this publication cycle, as confirmed by the owner. The software release was completed separately on 24 October; see the [0.3.0 release closeout](release-closeout-0.3.0-2026-10-24.md). Publication observations below describe the 23 October article cycle.
 
 ## Published and reviewed
 
