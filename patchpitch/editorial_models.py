@@ -155,6 +155,7 @@ class Document(Model):
     parent_revision_id: str | None = None
     source_sha256: Hash
     voice_id: str | None = None
+    catalog_id: str | None = None
     narrator: Literal["first_person_singular", "team", "neutral"] = "first_person_singular"
     language: Literal["en", "ru"] = "en"
     metadata: Metadata = Field(default_factory=Metadata)
@@ -178,6 +179,15 @@ class SectionResponse(Model):
     blocks: list[Block] = Field(min_length=1, max_length=32)
 
 
+class ProseParagraph(Model):
+    text: Annotated[str, StringConstraints(min_length=1, max_length=3000)]
+    source_ids: list[ID] = Field(min_length=1, max_length=15)
+
+
+class ProseResponse(Model):
+    paragraphs: list[ProseParagraph] = Field(min_length=1, max_length=32)
+
+
 class ImportResponse(Model):
     sections: list[Section] = Field(min_length=1, max_length=12)
 
@@ -190,3 +200,7 @@ class XIdea(Model):
 
 class XResponse(Model):
     posts: list[XIdea] = Field(min_length=3, max_length=3)
+
+
+class XSingleResponse(Model):
+    posts: list[XIdea] = Field(min_length=1, max_length=1)

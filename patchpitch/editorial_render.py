@@ -82,7 +82,7 @@ def body_markdown(doc, inputs, public=True):
     return "\n\n".join(parts) + "\n"
 
 
-def render_media(asset, assets, dev=False):
+def render_media(asset, assets, dev=False, language="en"):
     esc = lambda value: html.escape(value, quote=True)
     if dev:
         if not asset.public_url:
@@ -97,7 +97,7 @@ def render_media(asset, assets, dev=False):
         attrs = ' controls preload="metadata" playsinline'
         if poster:
             attrs += ' poster="' + esc(poster.path) + '"'
-        track = '<track kind="subtitles" label="Subtitles" src="' + esc(subtitle.path) + '">' if subtitle else ""
+        track = '<track kind="subtitles" srclang="' + esc(language) + '" label="Subtitles" src="' + esc(subtitle.path) + '">' if subtitle else ""
         return '<video' + attrs + '><source src="' + esc(asset.path) + '" type="video/mp4">' + track + "Your browser cannot play this video.</video>"
     return '<a href="' + esc(asset.path) + '">Subtitles</a>'
 
@@ -107,7 +107,7 @@ def html_document(doc, inputs, dev=False):
     content = []
     cover = assets.get(doc.metadata.cover_asset_id)
     if cover:
-        content.append(render_media(cover, assets, dev))
+        content.append(render_media(cover, assets, dev, doc.language))
     content.append("<h1>" + html.escape(doc.metadata.title) + "</h1>")
     content.append('<p class="meta">' + html.escape(doc.metadata.description) + "</p>")
     content.append('<p class="meta">' + html.escape(" · ".join(doc.metadata.tags)) + "</p>")
@@ -124,12 +124,17 @@ def html_document(doc, inputs, dev=False):
                 content.append("<pre><code>" + html.escape(code) + "</code></pre>")
             elif block.kind == "media":
                 asset = assets[block.asset_id]
-                content.append("<figure>" + render_media(asset, assets, dev) + ("<figcaption>" + inline(asset.caption) + "</figcaption>" if asset.caption else "") + "</figure>")
+                content.append("<figure>" + render_media(asset, assets, dev, doc.language) + ("<figcaption>" + inline(asset.caption) + "</figcaption>" if asset.caption else "") + "</figure>")
         content.append("</section>")
     if inputs["sources"].get("cta_text"):
         content.append("<p>" + inline(inputs["sources"]["cta_text"]) + "</p>")
     notice = "DEV export approximation: public assets are links; inspect the actual DEV draft separately." if dev else "Local article preview: video playback here does not establish support for inline video on DEV."
     return '<!doctype html><html lang="' + doc.language + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="' + html.escape(CSP, quote=True) + '"><title>' + html.escape(doc.metadata.title) + '</title><link rel="stylesheet" href="preview.css"><script src="preview.js" defer></script></head><body><main><nav class="toolbar"><button id="width" type="button">Desktop / mobile</button><a href="' + ("preview.html" if dev else "dev-preview.html") + '">' + ("Local media" if dev else "DEV export") + '</a></nav><p class="notice">' + notice + '</p>' + "".join(content) + '<footer class="meta">Revision ' + html.escape(doc.revision_id) + "</footer></main></body></html>"
+
+
+def export_identity(manifest, doc):
+    """Keep historical exports intact when article, series or final link changes."""
+    return digest({"revision": doc.revision_id, "x_series": manifest.get("x_series"), "public_url": manifest.get("public_url")})
 
 
 def export(work, out):
@@ -142,8 +147,8 @@ def export(work, out):
     if errors:
         raise RunError("MEDIA_INVALID", "; ".join(errors), 4)
     destination = Path(out).resolve()
-    if destination.is_relative_to(root / "inputs") or destination == root or destination.is_relative_to(root / "media"):
-        raise RunError("EXPORT_PATH", "Export to a separate folder, never over workspace inputs/media.")
+    if destination.is_relative_to(root) and not destination.is_relative_to(root / "exports"):
+        raise RunError("EXPORT_PATH", "Export to a separate folder or workspace exports, never over private history.")
     existing = destination / "export.json"
     if destination.exists() and any(destination.iterdir()) and not existing.exists():
         raise RunError("OUTPUT_NOT_EMPTY", "Choose an empty preview/export folder.")
@@ -158,6 +163,10 @@ def export(work, out):
             import hashlib
             if hashlib.sha256(path.read_bytes()).hexdigest() != expected:
                 raise RunError("EXPORT_CHANGED", "Exported files were edited. Import the edits or choose a new export folder.", 4)
+        if old.get("export_identity") != export_identity(manifest, doc):
+            raise RunError("EXPORT_STALE", "This folder preserves an earlier article/announcement export. Choose a new folder.", 4)
+    # Check dependent X output before writing any publication files.
+    x = export_series(root, manifest, doc)
     destination.mkdir(parents=True, exist_ok=True)
     files = {}
     def save(name, raw):
@@ -181,14 +190,13 @@ def export(work, out):
         save(a.path, inside(root, a.path).read_bytes())
         assets.append({k: getattr(a, k) for k in ("id", "kind", "path", "sha256", "alt", "caption", "public_url")})
     save("media-manifest.json", json.dumps({"assets": assets}, ensure_ascii=False, indent=2).encode())
-    x = export_series(root, manifest, doc)
     if x.get("status") == "ready":
         for index, post in enumerate(x["posts"], 1):
             save(f"x/{index:02}.txt", (post["text"] + "\n").encode())
         save("x/announcements.md", ("\n\n---\n\n".join(p["text"] for p in x["posts"]) + "\n").encode())
         save("x/manifest.json", json.dumps(x, ensure_ascii=False, indent=2).encode())
     write_json(destination / "export.json", {"schema_version": "patchpitch.editorial-export/v1", "document_id": doc.document_id,
-        "revision_id": doc.revision_id, "files": files, "body_sha256": digest(body_markdown(doc, inputs, True)),
+        "revision_id": doc.revision_id, "export_identity": export_identity(manifest, doc), "files": files, "body_sha256": digest(body_markdown(doc, inputs, True)),
         "unresolved_media": media_errors(root, doc, public=True), "x_state": x["status"]})
     return {"status": "exported", "revision_id": doc.revision_id,
             "artifacts": {"preview": str(destination / "preview.html"), "dev_preview": str(destination / "dev-preview.html"), "export": str(destination)}}

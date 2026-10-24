@@ -56,6 +56,7 @@ silently starts another inference. A saved raw response can be recovered with:
 patchpitch editorial recover --work artifacts/my-article --candidate ATTEMPT_ID --json
 patchpitch editorial revise --work artifacts/my-article --section S02 --instruction-file change.txt --operation-id revise-s02 --json
 patchpitch editorial reject --work artifacts/my-article --candidate ATTEMPT_ID --json
+patchpitch editorial draft --work artifacts/my-article --operation-id first-draft --retry-failed --json
 ```
 
 Recovery of unfinished inference requires its original runtime/model configuration.
@@ -64,6 +65,8 @@ Manual edits use `apply` with `section`, `outline`, `metadata`, `asset`, `voice`
 `lock_section`, `review_section`, `review_article`, `narrator` or `rollback` operations.
 All mutation IDs are idempotent; stale expected revisions fail before replacing work.
 Sections and blocks have stable IDs. Deleted IDs are reserved rather than reassigned.
+The model writes paragraph slots only; the application inserts the approved exact code
+and media references. A rewrite preserves existing code/list/media slots and bytes.
 An accepted candidate is still a draft: review sources, outline, meaning, title,
 description and conditions, then explicitly `review_article` for that content.
 
@@ -137,6 +140,9 @@ Publication exports contain no voice snapshots, raw responses, private provenanc
 absolute source paths. The explicit **workspace** bundle is different: it contains
 the complete private history for reopening. Exported Markdown is derived output;
 if changed externally, reuse is blocked until an explicit import or a new export folder.
+Earlier exports also remain intact when the article, accepted X series or bound URL
+changes: use a new output folder. The studio automatically selects a separate folder
+for that dependency state, preventing stale TXT files from appearing as current output.
 
 ## DEV draft and X
 
@@ -158,6 +164,16 @@ write requires `--existing-id ID` reconciliation against the exact previously su
 payload; later local edits remain intact. Already-published articles are never reverted.
 HTTP success is delivery evidence, not visual acceptance; inspect the actual draft.
 
+After viewing it, record that explicit review for the current revision:
+
+```text
+patchpitch editorial review-dev-preview --work artifacts/my-article --expected-revision REVISION --json
+```
+
+This rechecks local and remote hashes; a later edit invalidates the attestation.
+Forem may expose a submitted `main_image` as `cover_image`; that DTO alias is compared
+without changing the saved outgoing payload.
+
 ```text
 patchpitch editorial x --work artifacts/my-article --operation-id x-first --json
 patchpitch editorial accept --work artifacts/my-article --candidate x-first --expected-revision REVISION --json
@@ -168,6 +184,10 @@ patchpitch editorial bind-url --work artifacts/my-article --url FINAL_DEV_URL --
 ```
 
 Three distinct standalone announcements are candidates tied to article content.
+The full series uses three checkpointed model requests; a one-post rewrite uses one.
+`x --operation-id SAME_ID --retry-failed` explicitly retries failed children while
+reusing successful ones. Unknown outcomes need inspection/recovery first. Original
+model source IDs and application-selected product-context IDs are recorded separately.
 Exactly six tags are reserved and checked; five describe evidenced product topics,
 and required `#DEVCommunity` uses explicit **publication-context** evidence with the
 same freshness/audience checks. It is not a fabricated product fact. A stale article
@@ -178,3 +198,5 @@ Before final binding, the managed URL slot reserves 23 X characters but is not
 copy-ready text. Binding calls no model. `--verify` confirms public DEV identity;
 private preview/query links are rejected. Final export rechecks full length and fresh
 tag evidence, then writes three TXT files and a Markdown/JSON series. Nothing posts to X.
+When this workspace has a DEV draft receipt, the public URL must resolve to that same
+article ID. An unrelated already-published article cannot stand in for a new draft.

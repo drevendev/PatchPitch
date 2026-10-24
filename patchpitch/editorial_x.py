@@ -4,7 +4,7 @@ import re
 
 from . import generator, hashtags
 from .editorial import load, facts, article_hash, inside, parse, operation
-from .editorial_models import XResponse
+from .editorial_models import XResponse, XSingleResponse
 from .editorial_media import https_url, public_fetch
 from .editorial_render import body_markdown
 from .run_store import FileLock, RunError, digest, read_json, write_json
@@ -12,7 +12,7 @@ from .social_count import estimate
 from .campaigns import now
 
 
-def x_payload(root, doc, inputs, target_post_id=None):
+def x_payload(root, doc, inputs, target_post_id=None, fresh_post=False):
     from .editorial_generation import voice_request
     from . import voice
     if not doc.article_reviewed or not doc.sources_reviewed or not doc.outline_reviewed:
@@ -29,7 +29,7 @@ def x_payload(root, doc, inputs, target_post_id=None):
         raise RunError("X_LENGTH_BUDGET", "This catalog leaves insufficient space for a meaningful announcement.", 4)
     schema = XResponse.model_json_schema()
     previous = None
-    if target_post_id:
+    if target_post_id and not fresh_post:
         _, manifest, _, _ = load(root)
         if not manifest.get("x_series") or target_post_id not in {"P01", "P02", "P03"}:
             raise RunError("X_POST_UNKNOWN", "Select a post in the accepted announcement series.", 4)
@@ -37,6 +37,8 @@ def x_payload(root, doc, inputs, target_post_id=None):
         if previous["article_sha256"] != article_hash(doc):
             raise RunError("ANNOUNCEMENTS_STALE", "Review/reaffirm the series against the new article first.", 4)
         schema["properties"]["posts"].update(minItems=1, maxItems=1)
+    if fresh_post:
+        schema = XSingleResponse.model_json_schema()
     schema["$defs"]["XIdea"]["properties"]["text"]["maxLength"] = prose_budget
     request = voice_request(root, doc, inputs, x=True)
     prompt = (f"Write exactly {'one replacement' if target_post_id else 'three distinct'} standalone X announcement ideas in {doc.language} from the accepted article. "
@@ -48,6 +50,39 @@ def x_payload(root, doc, inputs, target_post_id=None):
         + voice.style_instructions(request))
     data = {"article": body_markdown(doc, inputs), "selected_facts": facts(inputs), "angles": inputs["config"]["x_angles"],
             "voice_examples": voice.examples(request), "candidate_tag_keywords": [{"tag": t.tag, "keywords": t.keywords} for t in catalog.tags]}
+    used = sorted({sid for s in doc.sections for b in s.blocks for sid in b.source_ids})
+    available = decisions(inputs, request, {"id": "article-context", "source_ids": used,
+        "topic": body_markdown(doc, inputs) + " " + " ".join(facts(inputs).values())})
+    data["evidence_backed_article_tag_plan"] = [{"tag": t["tag"], "usable_exact_topic_words": t["topic_matches"]}
+        for t in available["selected"]]
+    if fresh_post:
+        index = int(target_post_id[-2:]) - 1
+        if index not in range(3):
+            raise RunError("X_POST_UNKNOWN", "Choose P01, P02 or P03.", 4)
+        data["angles"] = [inputs["config"]["x_angles"][index]]
+        data["target_post_id"] = target_post_id
+        topical = [t for t in available["selected"] if hashtags.canonical(t["tag"]) != "#devcommunity"]
+        coverage = {sid: {t["tag"] for t in topical if any(hashtags.matches(k, text) for k in t["topic_matches"])}
+                    for sid, text in facts(inputs).items() if sid in used}
+        needed, context_ids = {t["tag"] for t in topical}, []
+        while needed:
+            sid = max(coverage, key=lambda key: (len(coverage[key] & needed), -used.index(key)))
+            if not coverage[sid] & needed:
+                raise RunError("X_SOURCE_SCOPE", "No selected source context supports this tag plan.", 4)
+            context_ids.append(sid)
+            needed -= coverage[sid]
+        data["required_product_context_source_ids"] = context_ids
+        tag_budget = len(" ".join(t["tag"] for t in available["selected"]))
+        prose_budget = 280 - 23 - 4 - tag_budget - 8
+        schema["$defs"]["XIdea"]["properties"]["text"]["maxLength"] = prose_budget
+        prompt = prompt.replace("three distinct", "one").replace("Three requested angles", "One requested angle")
+        prompt += (f" Write ONLY {target_post_id} for its single supplied angle, within {prose_budget} characters. "
+            "Explicitly name the product context and use the tag plan's exact factual topic words in the prose. "
+            "Do not write an isolated metric with none of the product context. Include the context source IDs as well as the source for any detail you mention. ")
+    prompt += (" Each announcement must contain enough concrete product context for five evidenced topic tags. "
+        "The article_tag_plan shows real words shared with facts; use at least one listed exact topic word for each topical tag in the prose. "
+        "Cite the product-context facts as well as any experiment/example fact you use. A narrow metric alone cannot support five tags. "
+        "The DEVCommunity tag is publication context, not a product claim. Keep each requested angle distinct. ")
     if previous:
         data["target_post_id"] = target_post_id
         data["target_angle"] = previous["candidate"][int(target_post_id[-2:]) - 1]["angle"]
@@ -61,6 +96,7 @@ def x_payload(root, doc, inputs, target_post_id=None):
 
 
 def decisions(inputs, request, post):
+    post = {**post, "topic": post["topic"] + " " + post.get("prose", "")}
     catalog = inputs["catalog"]
     required = [t for t in catalog["tags"] if hashtags.canonical(t["tag"]) == "#devcommunity"]
     topical = {**catalog, "tags": [t for t in catalog["tags"] if hashtags.canonical(t["tag"]) != "#devcommunity"]}
@@ -80,20 +116,20 @@ def decisions(inputs, request, post):
     return result
 
 
-def validate_x_candidate(root, doc, inputs, value):
+def validate_x_candidate(root, doc, inputs, value, start_index=0, single=False):
     from .editorial_generation import voice_request
     from .validation import validate_draft
     from .models import PostDraft
-    response = parse(XResponse, value)
+    response = parse(XSingleResponse if single else XResponse, value)
     request = voice_request(root, doc, inputs, x=True)
     output = []
     allowed = {sid for s in doc.sections for b in s.blocks for sid in b.source_ids}
-    for index, idea in enumerate(response.posts, 1):
+    for index, idea in enumerate(response.posts, start_index + 1):
         if not set(idea.source_ids) <= allowed or len(set(idea.source_ids)) != len(idea.source_ids):
             raise RunError("X_SOURCE_SCOPE", "Announcements can cite only facts used in the accepted article.", 4)
         if hashtags.TAG.search(idea.text) or re.search(r"https?://|article_public_url|\{%|<script", idea.text, re.I):
             raise RunError("X_PROSE_INVALID", "Keep tags, links and markup outside announcement prose.", 4)
-        post = {"id": f"P{index:02}", "topic": idea.topic, "source_ids": idea.source_ids}
+        post = {"id": f"P{index:02}", "topic": idea.topic, "source_ids": idea.source_ids, "prose": idea.text}
         decision = decisions(inputs, request, post)
         tags = [t["tag"] for t in decision["selected"]]
         candidates = {t["tag"]: t for t in inputs["catalog"]["tags"]}
@@ -108,7 +144,7 @@ def validate_x_candidate(root, doc, inputs, value):
         output.append({**post, "angle": inputs["config"]["x_angles"][index - 1], "prose": idea.text, "hashtags": tags,
             "cta_slot": "article_public_url", "decisions": decision, "warnings": warnings,
             "length_with_url_slot": estimate(provisional)})
-    if len({p["prose"].casefold().strip() for p in output}) != 3:
+    if len({p["prose"].casefold().strip() for p in output}) != len(output):
         raise RunError("X_DUPLICATE_ANGLES", "The three announcements must differ.", 4)
     return output
 
@@ -129,6 +165,10 @@ def accept_series(root, attempt, expected, operation_id):
         manifest["operations"][operation_id] = {"request_sha256": digest(request), "result": result}
         attempt["status"] = "accepted"
         write_json(root / f"attempts/{attempt['id']}.json", attempt)
+        for child in attempt.get("child_attempts", []):
+            saved = read_json(inside(root, f"attempts/{child}.json"))
+            saved["status"], saved["accepted_by_batch"] = "accepted", attempt["id"]
+            write_json(root / f"attempts/{child}.json", saved)
         write_json(root / "manifest.json", manifest)
         return result
 
@@ -137,7 +177,8 @@ def export_series(root, manifest, doc):
     if not manifest.get("x_series"):
         return {"status": "not_generated"}
     attempt = read_json(inside(root, f"attempts/{manifest['x_series']}.json"))
-    if article_hash(doc) != attempt["article_sha256"]:
+    _, _, _, current_inputs = load(root)
+    if article_hash(doc) != attempt["article_sha256"] or attempt.get("catalog_sha256", digest(current_inputs["catalog"])) != digest(current_inputs["catalog"]):
         return {"status": "stale", "candidate": attempt["id"], "posts": attempt["candidate"]}
     link = manifest.get("public_url") or {}
     if not link.get("verified"):
@@ -196,7 +237,7 @@ def bind_url(work, url, verify=False, operation_id=None):
     return result
 
 
-def edit_series(work, post_id=None, text=None, reaffirm=False, operation_id=None, expected_revision_id=None):
+def edit_series(work, post_id=None, text=None, reaffirm=False, operation_id=None, expected_revision_id=None, source_ids=None):
     """Manual candidate or explicit reaffirmation; never silently rebase old copy."""
     root, manifest, doc, inputs = load(work)
     if expected_revision_id and doc.revision_id != expected_revision_id:
@@ -206,13 +247,20 @@ def edit_series(work, post_id=None, text=None, reaffirm=False, operation_id=None
     previous = read_json(inside(root, f"attempts/{manifest['x_series']}.json"))
     if not reaffirm and previous["article_sha256"] != article_hash(doc):
         raise RunError("ANNOUNCEMENTS_STALE", "Explicitly reaffirm old copy against the current article first.", 4)
-    ideas = [{"topic": p["topic"], "source_ids": p["source_ids"], "text": text if p["id"] == post_id else p["prose"]} for p in previous["candidate"]]
+    ideas = [{"topic": p["topic"], "source_ids": source_ids if p["id"] == post_id and source_ids is not None else p["source_ids"],
+              "text": text if p["id"] == post_id else p["prose"]} for p in previous["candidate"]]
     if not reaffirm and post_id not in {p["id"] for p in previous["candidate"]}:
         raise RunError("X_POST_UNKNOWN", "Select an existing announcement.", 4)
     validated = validate_x_candidate(root, doc, inputs, {"posts": ideas})
+    if not reaffirm:
+        for index, prior in enumerate(previous["candidate"]):
+            if prior["id"] != post_id:
+                if (validated[index]["hashtags"] != prior["hashtags"] or validated[index]["source_ids"] != prior["source_ids"]):
+                    raise RunError("ANNOUNCEMENTS_STALE", "Another post's tag/source selection changed; reaffirm the complete series first.", 4)
+                validated[index] = prior
     import uuid
     identity = operation_id or "x-edit-" + uuid.uuid4().hex
-    request = {"post_id": post_id, "text": text, "reaffirm": reaffirm, "expected_revision_id": expected_revision_id}
+    request = {"post_id": post_id, "text": text, "reaffirm": reaffirm, "expected_revision_id": expected_revision_id, "source_ids": source_ids}
     with FileLock(root / ".editorial.lock"):
         _, current, latest, _ = load(root)
         old = operation(current, identity, request)
@@ -223,6 +271,7 @@ def edit_series(work, post_id=None, text=None, reaffirm=False, operation_id=None
         result = {"status": "candidate", "candidate": identity, "revision_id": doc.revision_id}
         write_json(root / f"attempts/{identity}.json", {"id": identity, "kind": "x", "status": "candidate",
             "base_revision_id": doc.revision_id, "article_sha256": article_hash(doc), "candidate": validated,
+            "catalog_sha256": digest(inputs["catalog"]),
             "x_base_series": previous["id"], "origin": "manual_reaffirmation" if reaffirm else "manual_edit", "recorded_at": now()})
         current["operations"][identity] = {"request_sha256": digest(request), "result": result}
         write_json(root / "manifest.json", current)

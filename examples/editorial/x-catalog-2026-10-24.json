@@ -1,9 +1,88 @@
 {
   "schema_version": "patchpitch.hashtag-catalog/v1",
   "id": "patchpitch-editorial-observed",
-  "version": "2026-10-24.1",
+  "version": "2026-10-24.2",
   "max_age_days": 30,
   "tags": [
+    {
+      "tag": "#Python",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "Python"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 3,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#Python",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 2,
+          "relevant_posts": 1,
+          "relevant_authors": 1
+        }
+      ]
+    },
+    {
+      "tag": "#PythonDevelopment",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "Python development",
+        "Python implementation",
+        "Python code"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 2,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#PythonDevelopment",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 1,
+          "relevant_posts": 1,
+          "relevant_authors": 1
+        }
+      ]
+    },
+    {
+      "tag": "#CLI",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "CLI",
+        "command-line",
+        "non-interactive"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 3,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#CLI",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 2,
+          "relevant_posts": 2,
+          "relevant_authors": 1
+        }
+      ]
+    },
     {
       "tag": "#DevTools",
       "languages": [
@@ -24,7 +103,7 @@
       "evidence": [
         {
           "kind": "public_sample",
-          "source": "local:x-observations-2026-10-22.json#DevTools",
+          "source": "local:../headless/x-observations-2026-10-22.json#DevTools",
           "observed_at": "2026-10-22T14:33:49Z",
           "window_days": 366,
           "sample_size": 6,
@@ -44,7 +123,8 @@
         "automatic",
         "automated",
         "non-interactive",
-        "unattended"
+        "unattended",
+        "automate"
       ],
       "audience_keywords": [
         "Developers"
@@ -54,12 +134,39 @@
       "evidence": [
         {
           "kind": "public_sample",
-          "source": "local:x-observations-2026-10-22.json#Automation",
+          "source": "local:../headless/x-observations-2026-10-22.json#Automation",
           "observed_at": "2026-10-22T14:33:49Z",
           "window_days": 366,
           "sample_size": 4,
           "relevant_posts": 3,
           "relevant_authors": 3
+        }
+      ]
+    },
+    {
+      "tag": "#BuildInPublic",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "development",
+        "progress",
+        "building"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 2,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#BuildInPublic",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 6,
+          "relevant_posts": 6,
+          "relevant_authors": 6
         }
       ]
     },
@@ -80,7 +187,7 @@
       "evidence": [
         {
           "kind": "public_sample",
-          "source": "local:x-observations-2026-10-22.json#OpenSource",
+          "source": "local:../headless/x-observations-2026-10-22.json#OpenSource",
           "observed_at": "2026-10-22T14:33:49Z",
           "window_days": 366,
           "sample_size": 7,
@@ -106,7 +213,7 @@
       "evidence": [
         {
           "kind": "public_sample",
-          "source": "local:x-observations-2026-10-22.json#LocalAI",
+          "source": "local:../headless/x-observations-2026-10-22.json#LocalAI",
           "observed_at": "2026-10-22T14:33:49Z",
           "window_days": 366,
           "sample_size": 6,
@@ -131,12 +238,63 @@
       "evidence": [
         {
           "kind": "public_sample",
-          "source": "local:x-observations-2026-10-22.json#Ollama",
+          "source": "local:../headless/x-observations-2026-10-22.json#Ollama",
           "observed_at": "2026-10-22T14:33:49Z",
           "window_days": 366,
           "sample_size": 4,
           "relevant_posts": 4,
           "relevant_authors": 2
+        }
+      ]
+    },
+    {
+      "tag": "#LLM",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "model",
+        "Ollama"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 2,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#LLM",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 2,
+          "relevant_posts": 2,
+          "relevant_authors": 1
+        }
+      ]
+    },
+    {
+      "tag": "#Markdown",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "Markdown"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 2,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#Markdown",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 1,
+          "relevant_posts": 1,
+          "relevant_authors": 1
         }
       ]
     },

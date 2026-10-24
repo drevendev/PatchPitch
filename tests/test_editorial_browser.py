@@ -77,3 +77,27 @@ def test_editorial_ui_uses_shared_candidate_acceptance(ui_url, workspace, model)
         expect(page.locator('[data-section="S01"] textarea').first).to_have_value("I keep local drafts.")
         assert len(model) == 3
         browser.close()
+
+
+def test_saving_one_section_retains_other_unsaved_edits(ui_url, workspace):
+    complete(workspace)
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page()
+        page.goto(ui_url + "/editorial")
+        page.locator("#work").fill(str(workspace)); page.locator("#open").click()
+        expect(page.locator("#block-B01")).to_be_visible()
+        page.locator("#block-B02").fill("My unsaved second section stays here.")
+        page.locator("#block-B01").fill("My saved first section.")
+        page.locator('[data-section="S01"]').get_by_role("button", name="Save this section", exact=True).click()
+        expect(page.locator("#block-B02")).to_have_value("My unsaved second section stays here.")
+        assert e.load(workspace)[2].sections[1].blocks[0].text == "My local edits survive failure."
+        page.locator("#build-preview").click()
+        expect(page.locator("#error")).to_contain_text("Save pending")
+        page.reload()
+        page.locator("#open").click()
+        expect(page.locator("#block-B02")).to_have_value("My unsaved second section stays here.")
+        page.locator('[data-section="S02"]').get_by_role("button", name="Save this section", exact=True).click()
+        expect(page.locator("#block-B02")).to_have_value("My unsaved second section stays here.")
+        assert e.load(workspace)[2].sections[0].blocks[0].text == "My saved first section."
+        browser.close()

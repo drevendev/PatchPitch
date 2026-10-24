@@ -42,7 +42,7 @@ def create_from_form(data):
 def dispatch(data):
     if not isinstance(data.get("work"), str) or not 1 <= len(data["work"]) <= 2000:
         raise RunError("ARGUMENT_ERROR", "Choose a bounded local article folder path.")
-    for field in ("verify", "dry_run", "reaffirm", "preflight"):
+    for field in ("verify", "dry_run", "reaffirm", "preflight", "retry_failed"):
         if field in data and type(data[field]) is not bool:
             raise RunError("ARGUMENT_ERROR", "Operation flags must be booleans.")
     action, work = data["action"], data["work"]
@@ -54,9 +54,9 @@ def dispatch(data):
         return domain.apply(work, data["mutation"])
     if action in {"outline", "revise", "x"}:
         return writing.propose(work, "section" if action == "revise" else action, data.get("operation_id"), data.get("section_id"),
-            data.get("instruction", ""), data.get("expected_revision_id"), data.get("dry_run", False))
+            data.get("instruction", ""), data.get("expected_revision_id"), data.get("dry_run", False), data.get("retry_failed", False))
     if action == "draft":
-        return writing.draft(work, data.get("operation_id"), data.get("dry_run", False))
+        return writing.draft(work, data.get("operation_id"), data.get("dry_run", False), data.get("retry_failed", False))
     if action == "accept":
         return writing.accept(work, data["candidate"], data["expected_revision_id"], data.get("operation_id"))
     if action in {"recover", "reject"}:
@@ -64,7 +64,7 @@ def dispatch(data):
     if action == "edit-x":
         from .editorial_x import edit_series
         return edit_series(work, data.get("post_id"), data.get("text"), data.get("reaffirm", False),
-            data.get("operation_id"), data.get("expected_revision_id"))
+            data.get("operation_id"), data.get("expected_revision_id"), data.get("source_ids"))
     if action == "import-markdown":
         from .editorial_import import import_markdown
         return import_markdown(work, data["path"], data.get("source_map"), data.get("operation_id"), data.get("expected_revision_id"))
@@ -74,8 +74,10 @@ def dispatch(data):
     if action == "validate":
         return domain.validate(work)
     if action in {"preview", "export"}:
-        root, _, doc, _ = domain.load(work)
-        out = data.get("out") or str(root / "exports" / doc.revision_id)
+        root, manifest, doc, _ = domain.load(work)
+        if data.get("expected_revision_id") and data["expected_revision_id"] != doc.revision_id:
+            raise RunError("REVISION_CONFLICT", "The article changed; reopen it before preview/export.")
+        out = data.get("out") or str(root / "exports" / doc.revision_id / rendering.export_identity(manifest, doc)[:16])
         value = rendering.export(work, out)
         token = secrets.token_urlsafe(24)
         PREVIEWS[token] = Path(out).resolve()
@@ -89,6 +91,9 @@ def dispatch(data):
     if action == "remote":
         from .editorial_dev import inspect
         return inspect(work)
+    if action == "review-dev-preview":
+        from .editorial_dev import review_preview
+        return review_preview(work, data["expected_revision_id"])
     if action == "bind-url":
         from .editorial_x import bind_url
         return bind_url(work, data["url"], data.get("verify", False), data.get("operation_id"))

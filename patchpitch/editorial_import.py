@@ -108,7 +108,7 @@ def bundle(work, out):
     if destination.exists() and any(destination.iterdir()):
         raise RunError("OUTPUT_NOT_EMPTY", "Choose an empty private bundle folder.")
     with FileLock(root / ".editorial.lock"):
-        for prefix in ("inputs", "voices", "revisions", "attempts", "receipts", "media"):
+        for prefix in ("inputs", "voices", "catalogs", "revisions", "attempts", "receipts", "media"):
             for path in (root / prefix).rglob("*") if (root / prefix).exists() else []:
                 if path.is_file():
                     name = path.relative_to(root).as_posix()

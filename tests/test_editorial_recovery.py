@@ -118,9 +118,70 @@ def test_manual_x_edit_and_stale_reaffirmation_preserve_other_posts(workspace, m
     changed = x.edit_series(workspace, "P02", "My revised local drafts.", operation_id="manual-x")
     writing.accept(workspace, changed["candidate"], changed["revision_id"])
     current = read_json(workspace / "attempts/manual-x.json")["candidate"]
-    assert current[0] == original[0] and current[2] == original[2] and len(model) == 1
+    assert current[0] == original[0] and current[2] == original[2] and len(model) == 3
     patch(workspace, [{"type": "metadata", "value": {"description": "New reviewed angle"}}])
     patch(workspace, [{"type": "review_article"}])
     reaffirmed = x.edit_series(workspace, reaffirm=True, operation_id="reaffirm-x")
     writing.accept(workspace, reaffirmed["candidate"], reaffirmed["revision_id"])
-    assert e.status(workspace)["x_state"] == "awaiting_public_url" and len(model) == 1
+    assert e.status(workspace)["x_state"] == "awaiting_public_url" and len(model) == 3
+
+
+def test_batch_explicit_retry_reuses_successful_sections_and_exact_code(workspace, model, monkeypatch):
+    planned(workspace)
+    original = generator.ollama_json
+    failures = []
+    def fail_second(path, payload, **kwargs):
+        data = json.loads(payload["messages"][0]["content"].split("UNTRUSTED TASK DATA:\n", 1)[1])
+        if data["selected_section"]["id"] == "S02" and not failures:
+            failures.append(True)
+            return {"done": False, "message": {"content": "unfinished"}}
+        return original(path, payload, **kwargs)
+    monkeypatch.setattr(generator, "ollama_json", fail_second)
+    with pytest.raises(RunError):
+        writing.draft(workspace, "resume-batch")
+    assert len(model) == 1
+    with pytest.raises(RunError):
+        writing.draft(workspace, "resume-batch")
+    assert len(model) == 1
+    recovered = writing.draft(workspace, "resume-batch", retry_failed=True)
+    assert len(model) == 2 and e.status(workspace)["request_count"] == 3
+    writing.accept(workspace, recovered["candidate"], recovered["revision_id"])
+    section = e.load(workspace)[2].sections[1]
+    assert section.blocks[-1].kind == "code" and section.blocks[-1].snippet_id == "C02-code-1"
+    assert read_json(workspace / "attempts/resume-batch-S01.json")["status"] == "accepted"
+
+
+def test_catalog_refresh_preserves_article_review_and_immutable_inputs(workspace, model):
+    complete(workspace)
+    before = (workspace / "inputs/snapshot.json").read_bytes()
+    current = e.load(workspace)[3]["catalog"]
+    current["version"] = "an-explicit-new-observation-selection"
+    patch(workspace, [{"type": "catalog", "value": current}])
+    assert e.load(workspace)[2].article_reviewed
+    assert e.load(workspace)[3]["catalog"]["version"] == current["version"]
+    assert (workspace / "inputs/snapshot.json").read_bytes() == before
+
+
+def test_targeted_x_model_rewrite_keeps_other_cards_exact(workspace, model):
+    complete(workspace)
+    first = writing.propose(workspace, "x", "three-cards")
+    writing.accept(workspace, first["candidate"], first["revision_id"])
+    original = read_json(workspace / "attempts/three-cards.json")["candidate"]
+    rewritten = writing.propose(workspace, "x", "one-card", "P02")
+    assert len(model) == 4
+    candidate = read_json(workspace / "attempts/one-card.json")["candidate"]
+    assert candidate[0] == original[0] and candidate[2] == original[2]
+    assert len(read_json(workspace / "attempts/one-card.json")["child_attempts"]) == 1
+    writing.accept(workspace, rewritten["candidate"], rewritten["revision_id"])
+
+
+def test_recovery_rejects_runtime_changes_without_request(workspace, model, monkeypatch):
+    result = writing.propose(workspace, "outline", "runtime-check")
+    path = workspace / "attempts/runtime-check.json"
+    attempt = read_json(path)
+    attempt["status"] = "response_saved"
+    attempt["runtime"]["model"] = "another-model"
+    write_json(path, attempt)
+    with pytest.raises(RunError) as exc:
+        writing.recover(workspace, result["candidate"])
+    assert exc.value.code == "RUNTIME_MISMATCH" and len(model) == 1

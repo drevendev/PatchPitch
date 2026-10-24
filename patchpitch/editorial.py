@@ -34,14 +34,21 @@ def load(work):
     revision = manifest.get("revision_id", "")
     if not re.fullmatch(r"R[0-9a-f]{64}", revision):
         raise RunError("EDITORIAL_IDENTITY", "Invalid revision identity.")
-    doc = parse(Document, read_json(inside(root, f"revisions/{revision}.json")))
-    value = doc.model_dump()
+    raw_document = read_json(inside(root, f"revisions/{revision}.json"))
+    doc = parse(Document, raw_document)
+    value = dict(raw_document)
     value["revision_id"] = ""
     if doc.revision_id != revision or revision != "R" + digest(value):
         raise RunError("EDITORIAL_IDENTITY", "The accepted document was modified outside an operation.")
     inputs = read_json(inside(root, "inputs/snapshot.json"))
     if digest(inputs) != manifest.get("input_sha256") or digest(inputs["sources"]) != doc.source_sha256:
         raise RunError("EDITORIAL_IDENTITY", "The immutable editorial inputs were changed.")
+    if doc.catalog_id:
+        catalog = read_json(inside(root, f"catalogs/{doc.catalog_id}.json"))
+        if digest(catalog) != doc.catalog_id:
+            raise RunError("EDITORIAL_IDENTITY", "The saved catalog snapshot was changed.")
+        inputs = copy.deepcopy(inputs)
+        inputs["catalog"] = catalog
     return root, manifest, doc, inputs
 
 
@@ -118,6 +125,9 @@ def initialize(config_path, out):
             write_json(root / f"voices/{voice_id}.json", inputs["voice_bundle"])
         doc = Document(document_id=config.campaign_id, source_sha256=digest(inputs["sources"]),
                        language=config.language, narrator=config.narrator, voice_id=voice_id)
+        if inputs["catalog"]:
+            doc.catalog_id = digest(inputs["catalog"])
+            write_json(root / f"catalogs/{doc.catalog_id}.json", inputs["catalog"])
         manifest = {"schema_version": "patchpitch.editorial-work/v1", "input_sha256": digest(inputs),
             "created_at": now(), "operations": {}, "request_count": 0, "x_series": None, "public_url": None}
         commit(root, manifest, doc)
@@ -228,9 +238,7 @@ def apply(work, value):
         check_document(doc, inputs)
         doc.parent_revision_id = original.revision_id
         # Review-only operations may certify the current content; content edits always invalidate it.
-        before = original.model_dump(exclude={"revision_id", "parent_revision_id", "sources_reviewed", "outline_reviewed", "article_reviewed"})
-        after = doc.model_dump(exclude={"revision_id", "parent_revision_id", "sources_reviewed", "outline_reviewed", "article_reviewed"})
-        if before != after:
+        if article_hash(original) != article_hash(doc):
             doc.article_reviewed = False
         result = {"status": "accepted", "operation_id": mutation.operation_id}
         # Both commit and operation receipt are part of the one manifest switch.
@@ -247,7 +255,7 @@ def mutate(root, doc, inputs, item):
     allowed = {"outline": {"value"}, "section": {"value"}, "metadata": {"value"}, "review_sources": set(),
         "review_outline": set(), "review_section": {"section_id"}, "review_article": set(),
         "lock_section": {"section_id", "locked"}, "import_media": {"id", "path", "alt", "caption", "provenance", "decorative"},
-        "asset": {"id", "value"}, "voice": {"config", "base"}, "rollback": {"revision_id"}, "narrator": {"value"}}
+        "asset": {"id", "value"}, "voice": {"config", "base"}, "catalog": {"value"}, "rollback": {"revision_id"}, "narrator": {"value"}}
     if kind not in allowed or set(item) - ({"type"} | allowed[kind]):
         raise RunError("MUTATION_INVALID", "Unknown operation or operation fields.")
     required = {"import_media": {"id", "path", "provenance"}}.get(kind, allowed[kind])
@@ -340,12 +348,18 @@ def mutate(root, doc, inputs, item):
         if item["value"] not in {"first_person_singular", "team", "neutral"}:
             raise RunError("MUTATION_INVALID", "Choose a supported narrator.")
         doc.narrator = item["value"]
+    elif kind == "catalog":
+        from .hashtags import Catalog
+        catalog = parse(Catalog, item["value"]).model_dump()
+        doc.catalog_id = digest(catalog)
+        write_json(root / f"catalogs/{doc.catalog_id}.json", catalog)
     elif kind == "rollback":
         revision = item["revision_id"]
         if not re.fullmatch(r"R[0-9a-f]{64}", revision):
             raise RunError("EDITORIAL_IDENTITY", "Select a valid historical revision.")
-        old = parse(Document, read_json(inside(root, f"revisions/{revision}.json")))
-        old_identity = old.model_dump()
+        old_raw = read_json(inside(root, f"revisions/{revision}.json"))
+        old = parse(Document, old_raw)
+        old_identity = dict(old_raw)
         old_identity["revision_id"] = ""
         if old.revision_id != revision or revision != "R" + digest(old_identity):
             raise RunError("EDITORIAL_IDENTITY", "The historical revision was changed outside an operation.")
@@ -382,7 +396,8 @@ def status(work, include_document=False):
     series = manifest.get("x_series")
     if series:
         series = read_json(inside(root, f"attempts/{series}.json"))
-    x_state = "not_generated" if not series else "stale" if series["article_sha256"] != article_hash(doc) else "awaiting_public_url"
+    x_state = "not_generated" if not series else "stale" if (series["article_sha256"] != article_hash(doc) or
+        series.get("catalog_sha256", digest(inputs["catalog"])) != digest(inputs["catalog"])) else "awaiting_public_url"
     if series and x_state != "stale" and (manifest.get("public_url") or {}).get("verified"):
         x_state = "ready"
     value = {"status": "review_ready" if not blockers and not errors else "draft_ready" if doc.sections and all(s.blocks for s in doc.sections)
@@ -402,7 +417,7 @@ def status(work, include_document=False):
 
 def article_hash(doc):
     value = doc.model_dump(exclude={"revision_id", "parent_revision_id", "article_reviewed", "sources_reviewed",
-        "outline_reviewed", "used_section_ids", "used_block_ids"})
+        "outline_reviewed", "used_section_ids", "used_block_ids", "catalog_id"})
     for section in value["sections"]:
         section.pop("reviewed", None)
         section.pop("locked", None)

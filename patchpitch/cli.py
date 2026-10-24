@@ -42,7 +42,7 @@ def parser():
     schema.add_argument("--out", required=True)
     editorial = commands.add_parser("editorial", help="Plan, revise and preview an article workspace")
     actions = editorial.add_subparsers(dest="action", required=True, parser_class=Parser)
-    for name in ("init", "status", "outline", "draft", "revise", "accept", "apply", "preview", "validate", "export", "deliver", "x", "bind-url", "remote", "recover", "reject", "import-markdown", "edit-x"):
+    for name in ("init", "status", "outline", "draft", "revise", "accept", "apply", "preview", "validate", "export", "deliver", "x", "bind-url", "remote", "recover", "reject", "import-markdown", "edit-x", "review-dev-preview"):
         sub = actions.add_parser(name)
         sub.add_argument("--json", action="store_true")
         if name == "init":
@@ -54,8 +54,12 @@ def parser():
             sub.add_argument("--operation-id")
         if name in {"outline", "draft", "revise", "x"}:
             sub.add_argument("--dry-run", action="store_true")
+        if name in {"draft", "x"}:
+            sub.add_argument("--retry-failed", action="store_true")
         if name in {"outline", "revise", "x", "accept", "edit-x", "import-markdown"}:
             sub.add_argument("--expected-revision", required=name == "accept")
+        if name == "review-dev-preview":
+            sub.add_argument("--expected-revision", required=True)
         if name == "revise":
             sub.add_argument("--section", required=True)
             sub.add_argument("--instruction-file", required=True)
@@ -71,6 +75,7 @@ def parser():
             sub.add_argument("--post")
         if name == "edit-x":
             sub.add_argument("--text-file")
+            sub.add_argument("--sources", help="Explicit comma-separated article source IDs for a manual edit")
             sub.add_argument("--reaffirm", action="store_true")
         if name == "import-markdown":
             sub.add_argument("--file", required=True)
@@ -143,9 +148,10 @@ def dispatch_editorial(args):
             from .campaign_export import text_file
             instruction = text_file(args.instruction_file, 12000)
         return writing.propose(args.work, "section" if args.action == "revise" else args.action,
-            args.operation_id, getattr(args, "section", None) or getattr(args, "post", None), instruction, args.expected_revision, args.dry_run)
+            args.operation_id, getattr(args, "section", None) or getattr(args, "post", None), instruction, args.expected_revision, args.dry_run,
+            getattr(args, "retry_failed", False))
     if args.action == "draft":
-        return writing.draft(args.work, args.operation_id, args.dry_run)
+        return writing.draft(args.work, args.operation_id, args.dry_run, args.retry_failed)
     if args.action == "accept":
         return writing.accept(args.work, args.candidate, args.expected_revision, args.operation_id)
     if args.action in {"recover", "reject"}:
@@ -165,7 +171,8 @@ def dispatch_editorial(args):
         from .editorial_x import edit_series
         from .campaign_export import text_file
         return edit_series(args.work, args.post, text_file(args.text_file, 2000) if args.text_file else None,
-                           args.reaffirm, args.operation_id, args.expected_revision)
+                           args.reaffirm, args.operation_id, args.expected_revision,
+                           [s.strip() for s in args.sources.split(",")] if args.sources else None)
     if args.action == "validate":
         return editorial.validate(args.work)
     if args.action == "deliver":
@@ -174,6 +181,9 @@ def dispatch_editorial(args):
     if args.action == "remote":
         from .editorial_dev import inspect
         return inspect(args.work)
+    if args.action == "review-dev-preview":
+        from .editorial_dev import review_preview
+        return review_preview(args.work, args.expected_revision)
     if args.action == "bind-url":
         from .editorial_x import bind_url
         return bind_url(args.work, args.url, args.verify, args.operation_id)

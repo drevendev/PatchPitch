@@ -4,11 +4,20 @@ Updated 24 October 2026 after [0.3.0 release closeout](release-closeout-0.3.0-20
 
 New announcements remain on hold at the owner's request. The earlier DEV/X article cycle is closed; Telegram was intentionally skipped. PyPI distribution has not been requested and is not an unfinished step of this GitHub release.
 
-## Proposed 0.4.0 — editorial article pipeline
+## 0.4.0 development — editorial article pipeline
 
-Status: [specification prepared](0.4.0-spec.md), implementation not started. The specification audits the existing 0.3.0/main capabilities before defining the new work: an editable outline, Quillgrain section writing and revision, full preview with real media, DEV draft delivery and three linked X announcements. It defines revision/conflict handling, headless/UI parity and live editorial acceptance.
+Status: [specification](0.4.0-spec.md) committed to `main` in `9704298`; implementation on `codex/0.4.0-editorial-pipeline`, prepared for a draft PR. The shared CLI/studio pipeline now provides editable plans, scoped Quillgrain proposals, immutable revisions, section/block edits and locks, real-media preview/export, DEV draft synchronization and three linked X announcements. Details and live evidence: [verification report](editorial-0.4.0-verification.md); commands: [editorial guide](editorial.md).
 
-Existing X URL-counting and CSP test corrections below are carried forward, not reimplemented. DEV inline video with sound/controls remains the separate deferred item below; local video preview does not close it. No release, publication or new hosting service is authorized by preparing this specification.
+Automated regressions cover recovery, stale edits/exports, exact code/media preservation, DEV conflicts/disclosure/cover and X length/evidence/URL binding. Two real-model materials (PatchPitch and Quillgrain) reached private DEV drafts. These are engineering acceptance drafts, not new announcements. Original failed model attempts are retained; semantic author review is still required.
+
+Before promoting a release candidate:
+
+- Review the draft PR and both materials for voice, narrative, accuracy and useful examples. Technical checks and agent edits do not constitute the owner's editorial sign-off.
+- Measure active author editing time against a comparable baseline before claiming time saved. Request counts and inference timings alone do not establish this.
+- Keep model-output rejection visible: a supplementary imported-public-article experiment rejected narrow-topic/invalid-JSON X responses; no checks were relaxed. Operator-selected evidence, source context and manual editing remain part of the workflow.
+- Recheck fresh catalog evidence when preparing real announcements. Approve merge, version promotion and release separately.
+
+Existing X URL-counting and CSP test corrections below are carried forward, not reimplemented. DEV inline video with sound/controls remains the separate deferred item below; local video preview does not close it. Package version remains 0.3.0; no release, tag, public post or new hosting service was created for this implementation.
 
 ## DEV video with sound and controls
 

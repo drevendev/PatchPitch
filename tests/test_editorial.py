@@ -65,11 +65,13 @@ def model(monkeypatch):
         if "thesis" in properties:
             result = outline()
         elif "posts" in properties:
-            result = {"posts": [{"topic": "local drafts", "source_ids": ["C01"], "text": f"{start} local drafts."} for start in ("I prepare", "I review", "I keep")]}
+            data = json.loads(payload["messages"][0]["content"].split("UNTRUSTED DATA:\n", 1)[1])
+            start = ("I prepare", "I review", "I keep")[int(data.get("target_post_id", "P01")[-2:]) - 1]
+            result = {"posts": [{"topic": "local drafts", "source_ids": ["C01"], "text": f"{start} local drafts."}]}
         else:
             content = payload["messages"][0]["content"]
             data = json.loads(content.split("UNTRUSTED TASK DATA:\n")[1])
-            result = {"blocks": [{"id": "temporary", "kind": "paragraph", "text": "I keep local drafts.", "source_ids": data["selected_section"]["source_ids"]}]}
+            result = {"paragraphs": [{"text": "I keep local drafts.", "source_ids": data["selected_section"]["source_ids"]}]}
         return {"done": True, "model": "MOCK", "message": {"content": json.dumps(result)}}
     monkeypatch.setattr(generator, "ollama_json", answer)
     return calls
@@ -85,6 +87,9 @@ def test_init_dry_run_outline_and_batch_candidates(workspace, model):
     patch(workspace, [{"type": "review_sources"}, {"type": "review_outline"}])
     candidates = writing.draft(workspace, "first-draft")
     assert len(model) == 3
+    schema = model[-1]["format"]["$defs"]["ProseParagraph"]
+    assert "source_ids" in schema["required"]
+    assert schema["properties"]["source_ids"]["items"]["enum"] == ["C02"]
     assert writing.draft(workspace, "first-draft")["candidate"] == candidates["candidate"] and len(model) == 3
     writing.accept(workspace, candidates["candidate"], candidates["revision_id"])
     assert e.status(workspace)["status"] == "draft_ready"
@@ -178,7 +183,7 @@ def test_x_url_binding_budget_and_staleness(workspace, model, monkeypatch):
     x.bind_url(root, url, verify=True)
     _, manifest, doc, _ = e.load(root)
     ready = x.export_series(root, manifest, doc)
-    assert ready["status"] == "ready" and len(ready["posts"]) == 3 and len(model) == 1
+    assert ready["status"] == "ready" and len(ready["posts"]) == 3 and len(model) == 3
     assert all(len(p["hashtags"]) == 6 and "#DEVCommunity" in p["hashtags"] for p in ready["posts"])
     assert all(p["length"]["characters"] == len(p["text"]) - len(url) + 23 for p in ready["posts"])
     for bad in [url + "?preview=secret", "http://dev.to/writer/a", "https://localhost/x/y", "https://example.com/a/b"]:
@@ -272,3 +277,57 @@ def test_missing_voice_and_source_fingerprint(workspace):
     with pytest.raises(RunError) as exc:
         e.load(root)
     assert exc.value.code == "EDITORIAL_IDENTITY"
+
+
+def test_dev_cover_dto_alias_and_transform_are_compared_without_losing_payload():
+    expected = {"title": "A title", "description": "A description", "body_markdown": "Body", "tags": ["devtools"],
+                "main_image": "https://example.com/cover.png", "ai_disclosure_level": "some_ai"}
+    observed = {k: v for k, v in expected.items() if k not in {"main_image", "ai_disclosure_level"}}
+    observed["cover_image"] = "https://media2.dev.to/dynamic/image/width=1000/https%3A%2F%2Fexample.com%2Fcover.png"
+    assert dev.matches_submitted(observed, expected)
+    observed["cover_image"] = "https://example.com/a-different-cover.png"
+    assert not dev.matches_submitted(observed, expected)
+
+
+def test_visual_review_is_explicit_and_rejects_remote_changes(workspace, dev_remote):
+    complete(workspace)
+    receipt = dev.deliver(workspace)
+    assert receipt["remote_preview_reviewed"] is False
+    revision = e.load(workspace)[2].revision_id
+    assert dev.review_preview(workspace, revision)["status"] == "remote_preview_reviewed"
+    dev_remote[0][42]["description"] = "Edited in DEV after viewing"
+    with pytest.raises(RunError) as exc:
+        dev.review_preview(workspace, revision)
+    assert exc.value.code == "REMOTE_DRAFT_CHANGED"
+
+
+def test_export_preserves_history_when_x_becomes_stale(workspace, model, monkeypatch, tmp_path):
+    complete(workspace)
+    result = writing.propose(workspace, "x", "export-series")
+    writing.accept(workspace, result["candidate"], result["revision_id"])
+    url = "https://dev.to/writer/published-article"
+    monkeypatch.setattr(x, "public_fetch", lambda u: {"body": json.dumps({"id": 42, "url": url, "published_at": "2026-10-24"}).encode()})
+    x.bind_url(workspace, url, verify=True)
+    out = tmp_path / "before"
+    rendering.export(workspace, out)
+    original = {p.relative_to(out): p.read_bytes() for p in out.rglob("*") if p.is_file()}
+    patch(workspace, [{"type": "metadata", "value": {"description": "A changed article"}}])
+    with pytest.raises(RunError) as exc:
+        rendering.export(workspace, out)
+    assert exc.value.code == "EXPORT_STALE"
+    assert original == {p.relative_to(out): p.read_bytes() for p in out.rglob("*") if p.is_file()}
+    fresh = tmp_path / "after"
+    rendering.export(workspace, fresh)
+    assert not (fresh / "x").exists()
+    assert read_json(fresh / "export.json")["x_state"] == "stale"
+
+
+def test_public_url_must_match_delivered_article(workspace, dev_remote, monkeypatch):
+    complete(workspace)
+    dev.deliver(workspace)
+    url = "https://dev.to/writer/a-different-article"
+    monkeypatch.setattr(x, "public_fetch", lambda u: {"body": json.dumps({"id": 43, "url": url, "published_at": "2026-10-24"}).encode()})
+    with pytest.raises(RunError) as exc:
+        x.bind_url(workspace, url, verify=True)
+    assert exc.value.code == "ARTICLE_ID_MISMATCH"
+    assert e.load(workspace)[1]["public_url"] is None

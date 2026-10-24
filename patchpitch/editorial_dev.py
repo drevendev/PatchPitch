@@ -9,6 +9,17 @@ from .run_store import FileLock, RunError, digest, read_json, write_json
 from .campaigns import now
 
 
+def cover_identity(value):
+    """Forem's DTO can expose the submitted main_image as a transformed cover_image."""
+    from urllib.parse import urlsplit, unquote
+    if isinstance(value, str) and urlsplit(value).hostname == "media2.dev.to":
+        lower = value.lower()
+        index = lower.rfind("/https%3a")
+        if index >= 0:
+            return unquote(value[index + 1:])
+    return value
+
+
 def payload(doc, inputs):
     body = body_markdown(doc, inputs, public=True)
     if body.lstrip().startswith("---"):
@@ -29,9 +40,9 @@ def observable(article, expected):
     if article.get("ai_disclosure_level") is not None:
         value["ai_disclosure_level"] = article["ai_disclosure_level"]
     if expected.get("main_image"):
-        if "main_image" not in article:
+        if "main_image" not in article and "cover_image" not in article:
             raise RunError("REMOTE_STATE_UNKNOWN", "DEV did not expose the cover for comparison.", 5)
-        value["main_image"] = article["main_image"]
+        value["main_image"] = cover_identity(article.get("main_image", article.get("cover_image")))
     return value
 
 
@@ -39,6 +50,8 @@ def matches_submitted(remote, expected):
     actual = observable(remote, expected)
     wanted = {k: expected[k] for k in actual}
     wanted["tags"] = sorted(wanted["tags"])
+    if "main_image" in wanted:
+        wanted["main_image"] = cover_identity(wanted["main_image"])
     return digest(actual) == digest(wanted)
 
 
@@ -129,3 +142,22 @@ def deliver(work, existing_id=None, expected_remote_hash=None, preflight=False):
             raise
         write_json(path, receipt)
         return receipt
+
+
+def review_preview(work, expected_revision_id):
+    """Explicit operator attestation after viewing DEV, distinct from HTTP delivery."""
+    root, manifest, doc, inputs = load(work)
+    if doc.revision_id != expected_revision_id:
+        raise RunError("REVISION_CONFLICT", "Review the current article revision first.")
+    observed = inspect(root)
+    path = root / "receipts/dev.json"
+    with FileLock(root / ".editorial.lock"):
+        _, _, current, current_inputs = load(root)
+        receipt = read_json(path)
+        current_hash = digest({"metadata": current.metadata.model_dump(), "body": body_markdown(current, current_inputs, True)})
+        if (current.revision_id != expected_revision_id or receipt.get("editorial_hash") != current_hash or
+                receipt.get("remote_sha256") != observed["remote_sha256"]):
+            raise RunError("REMOTE_DRAFT_CHANGED", "Local or remote content changed since the inspected draft.", 5)
+        receipt.update(remote_preview_reviewed=True, preview_reviewed_revision=current.revision_id, preview_reviewed_at=now())
+        write_json(path, receipt)
+        return {"status": "remote_preview_reviewed", "article_id": receipt["article_id"], "revision_id": current.revision_id}

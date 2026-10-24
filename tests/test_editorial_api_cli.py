@@ -56,3 +56,13 @@ def test_no_network_flags_by_coercion_or_malformed_ops(workspace):
         "operation_id": "missing-fields", "expected_revision_id": before, "operations": [{"type": "section"}]}})
     assert response.status_code == 422 and response.json()["error"]["code"] == "MUTATION_INVALID"
     assert e.load(workspace)[2].revision_id == before
+
+
+def test_preview_rejects_a_stale_editor_before_export(workspace):
+    complete(workspace)
+    client = TestClient(app, base_url="http://127.0.0.1")
+    for action in ("preview", "export"):
+        response = client.post("/api/editorial", json={"action": action, "work": str(workspace),
+            "expected_revision_id": "R" + "0" * 64})
+        assert response.status_code == 409 and response.json()["error"]["code"] == "REVISION_CONFLICT"
+    assert not (workspace / "exports").exists()
