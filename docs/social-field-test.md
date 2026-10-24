@@ -3,6 +3,10 @@
 Moved from the README on 2026-10-23 so that the README can start with a first run.
 The text is unchanged apart from one relative link. See also the [review record and release gates](0.2.0-review.md).
 
+Current follow-up: the unreleased [#91 correction](x-length.md) replaces the URL
+weighting described below with `x-estimate-v2`. The v1 observations in this
+historical candidate record are preserved.
+
 This candidate adds **X Single** and **X Thread** (3–7 posts, default five).
 Load **Reviewed fact packs**, inspect their provenance, confirm the selected
 facts and voice brief, then choose the X format and writing goal. Built-in inputs

@@ -85,7 +85,7 @@ function renderSocialCards(){
     const label=document.createElement("label");label.htmlFor="text-"+post.id;label.textContent=`Post ${index+1} of ${socialPosts.length} · ${post.id}`;
     const textarea=document.createElement("textarea");textarea.id="text-"+post.id;textarea.className="social-text";textarea.value=post.text;textarea.disabled=busy;textarea.maxLength=2200;
     const count=document.createElement("p");count.className="helper social-count";count.setAttribute("aria-live","polite");
-    const updateCount=()=>{const c=socialLength(post.text);count.textContent=`~${c.characters} / 280 · estimate · ${c.over_limit?"over limit — edit before publishing":"verify in X"}`;count.classList.toggle("over-limit",c.over_limit);};updateCount();
+    const updateCount=()=>{const c=socialLength(post.text);post.length=c;count.textContent=`~${c.characters} / 280 · estimate · ${c.over_limit?"over limit — edit before publishing":"verify in X"}`;count.classList.toggle("over-limit",c.over_limit);};updateCount();
     textarea.addEventListener("input",()=>{if(busy)return;post.text=textarea.value;post.edited=true;edited=true;updateCount();saveSocial();});
     const refs=document.createElement("p");refs.className="helper";refs.textContent="Generated sources: "+post.source_ids.join(", ")+" · recheck after edits.";
     const actions=document.createElement("div");actions.className="card-actions";

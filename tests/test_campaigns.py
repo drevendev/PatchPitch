@@ -211,7 +211,7 @@ def test_six_tag_model_ceiling_includes_last_card_cta(job_files, transport):
     from patchpitch.social_count import estimate
     job, out, data = job_files
     profile = read_json(job.parent / "profile.json")
-    profile["cta_text"] = "https://example.test/project/announcement"
+    profile["cta_text"] = "https://example.test/project/announcement?utm_source=x&utm_campaign=release"
     write_json(job.parent / "profile.json", profile)
     data["targets"] = [data["targets"][-1]]
     data["targets"][0].update(format="x_thread", post_count=3)
@@ -220,6 +220,8 @@ def test_six_tag_model_ceiling_includes_last_card_cta(job_files, transport):
     payload = transport[-1]
     ceiling = payload["format"]["$defs"]["SocialPost"]["properties"]["text"]["maxLength"]
     result = read_json(out / "outputs/x/original.json")
+    tag_line = " ".join(result["input_snapshot"]["hashtag_plan"][-1]["hashtags"])
+    assert ceiling == 280 - len(tag_line) - 4 - 23 - 8
     for index, plan in enumerate(result["input_snapshot"]["hashtag_plan"]):
         full = "a" * ceiling + "\n\n" + " ".join(plan["hashtags"])
         if index == 2:
@@ -227,6 +229,48 @@ def test_six_tag_model_ceiling_includes_last_card_cta(job_files, transport):
         assert estimate(full)["characters"] <= 280
     assert "150–200" not in payload["messages"][0]["content"]
     assert ceiling < 200
+
+
+def test_cli_long_dev_url_counts_edits_without_rewriting_history(job_files, transport, capsys):
+    from test_social_count import DEV_URL
+    job, out, data = job_files
+    profile = read_json(job.parent / "profile.json")
+    profile["cta_text"] = DEV_URL
+    write_json(job.parent / "profile.json", profile)
+    catalog = read_json(job.parent / "catalog.json")
+    catalog["tags"][-1]["tag"] = "#DEVCommunity"
+    write_json(job.parent / "catalog.json", catalog)
+    data["targets"] = [data["targets"][-1]]
+    write_json(job, data)
+    assert main(["run", "--job", str(job), "--out", str(out), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "succeeded"
+    directory = out / "outputs/x"
+    original = read_json(directory / "original.json")
+    tags = original["input_snapshot"]["hashtag_plan"][0]["hashtags"]
+    assert len(tags) == 6 and "#DEVCommunity" in tags
+    expected_budget = 280 - len(" ".join(tags)) - 4 - 23 - 8
+    assert transport[-1]["format"]["$defs"]["SocialPost"]["properties"]["text"]["maxLength"] == expected_budget
+    # Simulate a historical original with v1 measurement; validate creates a
+    # current measurement without changing its original or the input snapshot.
+    original["draft"]["posts"][0]["length"].update(policy="x-estimate-v1", characters=248)
+    write_json(directory / "original.json", original)
+    before = (directory / "original.json").read_bytes()
+    snapshot = (out / "snapshot.json").read_bytes()
+    suffix = "\n\n" + " ".join(tags) + "\n\n" + DEV_URL
+    prefix = "PatchPitch local "
+    prose_size = 280 - len(" ".join(tags)) - 4 - 23
+    prose = prefix + "a" * (prose_size - len(prefix) - 1) + "."
+    (directory / "P01.txt").write_text(prose + suffix + "\n", encoding="utf-8")
+    assert main(["validate", "--run", str(out), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["status"] == "validated"
+    length = read_json(directory / "current.json")["draft"]["posts"][0]["length"]
+    assert length["policy"] == "x-estimate-v2" and length["characters"] == 280
+    assert (directory / "original.json").read_bytes() == before
+    assert (out / "snapshot.json").read_bytes() == snapshot
+    (directory / "P01.txt").write_text("a" + prose + suffix + "\n", encoding="utf-8")
+    assert main(["validate", "--run", str(out), "--json"]) == 4
+    assert json.loads(capsys.readouterr().out)["errors"][0]["code"] == "X_LENGTH_EXCEEDED"
+    assert len(transport) == 2
 
 
 def test_run_and_engine_lock_are_nonblocking(tmp_path):

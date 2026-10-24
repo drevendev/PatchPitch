@@ -1,5 +1,15 @@
 # PatchPitch local development log
 
+## Unreleased — X URL counting (#91)
+
+- Count each recognized URL as 23 characters in CLI/UI validation and generation
+  budgets, including long DEV links and query/UTM parameters. Keep punctuation
+  outside the URL and leave unsupported/malformed candidates at raw weight.
+- Label the updated estimate `x-estimate-v2`; preserve original responses, saved
+  measurements and run snapshots. Refresh only current export measurements.
+- Cover expected URL counts, Python/JS parity, six-tag prompt budgets, and CLI/UI
+  copy/validation at 280 and 281 characters. This does not create a release.
+
 ## 0.3.0 — 2026-10-24
 
 - Add an installable Python CLI for strict JSON/TOML jobs, shared local generation,

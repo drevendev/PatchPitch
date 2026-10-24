@@ -88,7 +88,7 @@ The catalog has schema `patchpitch.hashtag-catalog/v1`, `id`, `version`, `max_ag
 
 The topic plan uses cited facts. Selection requires matching topic words in both the plan and cited facts, matching audience, and fresh observations. Ranking is deterministic: topic matches, editorial audience fit, observed sample relevance density, observation time, author count, lexical tie-break. Likes and clicks are not mixed into a made-up reach score. Each post gets exactly six tags. `hashtag_decisions.json` preserves selections, observations, scores and rejected candidates.
 
-No fake trends or pre-filled performance metrics are supplied. If six relevant observed tags are unavailable, X fails with `HASHTAGS_INSUFFICIENT_EVIDENCE`; other targets can finish. The automated match is lexical, not proof of meaning or guaranteed reach. `x-estimate-v1` remains a conservative length estimate; check final text in X.
+No fake trends or pre-filled performance metrics are supplied. If six relevant observed tags are unavailable, X fails with `HASHTAGS_INSUFFICIENT_EVIDENCE`; other targets can finish. The automated match is lexical, not proof of meaning or guaranteed reach. The unreleased [#91 count correction](x-length.md) uses `x-estimate-v2`, with 23 characters per recognized URL in counts and generation budgets. Published 0.3.0 artifacts and historical `x-estimate-v1` measurements remain unchanged. Check final text in X.
 
 ## Quillgrain
 

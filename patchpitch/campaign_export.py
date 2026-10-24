@@ -34,10 +34,12 @@ def current_result(path, snap, target):
     fmt = target["format"]
     if fmt.startswith("x_"):
         from .models import SocialInput
+        from .social_count import estimate
         request = SocialInput.model_validate(original["input_snapshot"])
         for post in result["draft"]["posts"]:
             post["text"] = text_file(directory / f"{post['id']}.txt", 20_000)
             validate_export_post(request, post)
+            post["length"] = estimate(post["text"])
         result["markdown"] = "\n\n---\n\n".join(p["text"] for p in result["draft"]["posts"]) + "\n"
     elif fmt == "dev_article":
         metadata = read_json(directory / "article.json", 200_000)

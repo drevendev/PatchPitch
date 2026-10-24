@@ -8,6 +8,7 @@ from test_browser import ui_url
 from patchpitch import generator, social
 from patchpitch.models import SocialInput
 from patchpitch.social_count import estimate
+from test_social_count import CASES
 
 
 def result_for(body, monkeypatch):
@@ -170,6 +171,12 @@ def test_unload_guard_and_count_policy_parity(ui_url,monkeypatch):
         assert page.evaluate("unloadProtected") is False
         corpus=["a"*279,"a"*280,"a"*281,"Привет 漢字 😀", "👨‍👩‍👧‍👦 e\u0301", "Hi http://test.co", "https://example.com/a/very/long/path?q=1!", "www.test.co.", "example.com/x", "A\n\nCTA #Tag"]
         assert page.evaluate("texts=>texts.map(socialLength)",corpus)==[estimate(t) for t in corpus]
+        # Assert independent expected values too: parity alone missed the v1 bug.
+        counts = page.evaluate("texts=>texts.map(socialLength)", [case["text"] for case in CASES])
+        for case, count in zip(CASES, counts):
+            expected = len(case["text"]) if case.get("raw") else case["characters"]
+            assert count["characters"] == expected, case["name"]
+            assert count["policy"] == "x-estimate-v2"
         page.route("**/api/social",lambda r:r.fulfill(json=result_for(r.request.post_data_json,monkeypatch)))
         load_and_select(page,"x_single");page.locator("#generate").click();expect(page.locator(".social-card")).to_have_count(1)
         page.locator("#text-P01").fill("Keep my edit.")

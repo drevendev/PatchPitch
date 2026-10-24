@@ -13,7 +13,7 @@ from pydantic import Field, StringConstraints, model_validator, ValidationError
 from . import generator
 from .models import StrictModel, SocialDraft
 from .run_store import RunError, digest, read_json, write_json
-from .social_count import estimate, URL
+from .social_count import estimate, strip_urls
 
 POLICY = "x-six-v1"
 TAG = re.compile(r"(?<!\w)#[\w]+", re.UNICODE)
@@ -121,7 +121,7 @@ def select(catalog, request, post, at=None):
 
 
 def validate_text(text, expected=None):
-    tags = [canonical(t) for t in TAG.findall(URL.sub(" ", text))]
+    tags = [canonical(t) for t in TAG.findall(strip_urls(text))]
     if len(tags) != 6 or len(set(tags)) != 6:
         raise RunError("X_HASHTAG_COUNT", "Every X post must contain exactly six unique hashtags.", 4)
     if expected is not None and set(tags) != {canonical(t) for t in expected}:

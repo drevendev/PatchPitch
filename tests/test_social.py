@@ -153,6 +153,19 @@ def test_estimate_known_cases(text,expected):
     assert count["over_limit"] == (expected > 280) and count["requires_x_preview"]
 
 
+def test_legacy_generation_reserves_23_for_long_cta(monkeypatch, social_input):
+    social_input.update(format="x_single", cta_text="https://example.com/" + "article/" * 30)
+    request = SocialInput.model_validate(social_input)
+    payload = social.build_payload(request)
+    assert "Last/target post text budget: 215." in payload["messages"][0]["content"]
+    mock_transport(monkeypatch, raw_posts(1))
+    result = social.generate(request)
+    post = result["draft"]["posts"][0]
+    prose = result["raw_draft"]["posts"][0]["text"]
+    assert post["length"]["characters"] == len(prose) + 2 + 23
+    assert post["text"].endswith(request.cta_text)
+
+
 def test_old_generation_missing_identity_is_not_filled(monkeypatch,input_data,draft_data):
     mock_transport(monkeypatch,draft_data)
     from patchpitch.models import PitchInput
