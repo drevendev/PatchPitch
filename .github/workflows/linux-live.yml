@@ -1,0 +1,57 @@
+name: Linux real-model acceptance
+on:
+  push:
+    branches: [codex/linux-live-030-20261024]
+    paths: [.github/workflows/linux-live.yml, scripts/linux_live_campaign.py]
+permissions:
+  contents: read
+jobs:
+  live:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PATCHPITCH_MODEL: gemma4:12b
+      PATCHPITCH_SENTRY_DSN: ''
+      OLLAMA_HOST: 127.0.0.1:11434
+      OLLAMA_MODELS: ${{ runner.temp }}/patchpitch-models
+      OLLAMA_NUM_PARALLEL: '1'
+      OLLAMA_NO_CLOUD: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install package in a fresh virtual environment
+        run: |
+          python -m venv "$RUNNER_TEMP/live-venv"
+          "$RUNNER_TEMP/live-venv/bin/python" -m pip install .
+      - name: Prepare official pinned Ollama and real model
+        run: |
+          mkdir -p "$RUNNER_TEMP/ollama" artifacts
+          curl --fail --location --retry 2 https://github.com/ollama/ollama/releases/download/v0.40.10/ollama-linux-amd64.tar.zst | tar --zstd -xf - -C "$RUNNER_TEMP/ollama"
+          "$RUNNER_TEMP/ollama/bin/ollama" serve > artifacts/linux-ollama.log 2>&1 &
+          echo "OLLAMA_PID=$!" >> "$GITHUB_ENV"
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:11434/api/version; then break; fi
+            sleep 2
+          done
+          "$RUNNER_TEMP/ollama/bin/ollama" pull "$PATCHPITCH_MODEL"
+          uname -a
+          free -h
+          df -h "$RUNNER_TEMP"
+      - name: Four real outputs without UI, from outside checkout
+        run: "$RUNNER_TEMP/live-venv/bin/python scripts/linux_live_campaign.py --output artifacts/linux-live"
+      - name: Save public-input evidence, including failures
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-live-${{ github.sha }}
+          path: |
+            artifacts/linux-live/
+            artifacts/linux-ollama.log
+          retention-days: 7
+      - name: Stop the temporary local model server
+        if: always()
+        run: if [ -n "${OLLAMA_PID:-}" ]; then kill "$OLLAMA_PID" || true; fi
