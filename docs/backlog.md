@@ -1,6 +1,6 @@
 # Backlog
 
-Updated 24 October 2026 after [0.3.0 release closeout](release-closeout-0.3.0-2026-10-24.md) and the X URL-counting correction [#91](https://github.com/drevendev/PatchPitch/issues/91). **0.3.0 is released.** The open items below are follow-up work, not open gates for the documented 12B/600-second configuration. No next-release version or work schedule is assigned.
+Updated 24 October 2026 after [0.3.0 release closeout](release-closeout-0.3.0-2026-10-24.md), the X URL-counting correction [#91](https://github.com/drevendev/PatchPitch/issues/91), and the CSP-safe browser test fix below. **0.3.0 is released.** The open items below are follow-up work, not open gates for the documented 12B/600-second configuration. No next-release version or work schedule is assigned.
 
 New announcements remain on hold at the owner's request. The earlier DEV/X article cycle is closed; Telegram was intentionally skipped. PyPI distribution has not been requested and is not an unfinished step of this GitHub release.
 
@@ -47,6 +47,15 @@ Acceptance criteria:
 No recurring collection or posting automation is enabled. See the [catalog guide](x-catalog.md).
 
 ## Completed after 0.3.0 — awaiting a future release
+
+### CSP-safe delayed-regeneration browser test
+
+Status: completed in `main` by [c2e337f](https://github.com/drevendev/PatchPitch/commit/c2e337fbce86aa0576720a54d32dece1f58346ae). The test and changelog changes are unreleased; no application CSP or release metadata was changed.
+
+- Replaced both string-expression `wait_for_function` calls with retrying locator assertions for the Generate button. This removes the polling path that raised a CSP `EvalError` during failed regeneration.
+- Retained successful and failed regeneration coverage: controls lock while a request is pending, then unlock; a failed request preserves the previous edit. The test also asserts that the served policy includes `script-src 'self'` without `unsafe-eval`; CSP is not bypassed.
+- Ten consecutive local runs passed both cases (20 checks). The full local suite passed on its first attempt: **382 passed, zero skips** with Quillgrain installed.
+- [CI for c2e337f](https://github.com/drevendev/PatchPitch/actions/runs/40106544985) passed on **attempt 1**, without a rerun: **363 passed, 3 expected optional-engine skips** in the base suite; **21 passed, zero skips** in the pinned Quillgrain job. Wheel/source builds, source test collection, clean-wheel installation and installed headless CLI verification also passed.
 
 ### X URL counting and generation budget (#91)
 
