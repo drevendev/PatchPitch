@@ -1,5 +1,9 @@
 # PR #92 review against the 0.4.0 specification
 
+Status update, 25 October 2026: the reviewed implementation was merged as `b8a5985`;
+main CI passed on attempt 1. The review below records the pre-merge stage.
+Current integration, draft and publication status: [main closeout](editorial-0.4.0-main-2026-10-25.md).
+
 Reviewed head: `4ab33568a9aa500ce9682e3bce59ca51b165a0d5`; specification/base on
 `main`: `9704298`. Review covers the shared document, inference/recovery, Quillgrain
 contracts, block/media rendering, DEV delivery, X dependencies, UI persistence and

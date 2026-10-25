@@ -1,5 +1,10 @@
 # Editorial pipeline implementation and verification
 
+Status update, 25 October 2026: PR #92 is merged and main CI passed on attempt 1.
+The observations below describe the original development runs. Subsequent draft
+editing and the separately authorized Quillgrain publication are recorded in the
+[main integration report](editorial-0.4.0-main-2026-10-25.md).
+
 24 October 2026. Branch: `codex/0.4.0-editorial-pipeline`; base specification committed
 and pushed to `main` as `9704298`. This is development work for a draft PR. Package
 version remains **0.3.0**; no version promotion, release, tag or public announcement.

@@ -1,8 +1,9 @@
 # Editorial article workspace (0.4.0 development)
 
-This is an unreleased workflow on the implementation branch. Existing 0.3.0
+This is an unreleased workflow merged into `main` through PR #92. Existing 0.3.0
 campaign/session commands keep their contracts. The [specification](0.4.0-spec.md)
-defines the product acceptance gates; a draft PR is not a release.
+defines the product acceptance gates; merging the implementation is not a release.
+See the [main integration record](editorial-0.4.0-main-2026-10-25.md) for CI and publication status.
 Try the [guided experiments](editorial-experiments.md); the subsequent
 [PR review](editorial-0.4.0-review.md) records additional regression fixes.
 
