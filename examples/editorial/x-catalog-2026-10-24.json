@@ -1,0 +1,328 @@
+{
+  "schema_version": "patchpitch.hashtag-catalog/v1",
+  "id": "patchpitch-editorial-observed",
+  "version": "2026-10-24.2",
+  "max_age_days": 30,
+  "tags": [
+    {
+      "tag": "#Python",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "Python"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 3,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#Python",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 2,
+          "relevant_posts": 1,
+          "relevant_authors": 1
+        }
+      ]
+    },
+    {
+      "tag": "#PythonDevelopment",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "Python development",
+        "Python implementation",
+        "Python code"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 2,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#PythonDevelopment",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 1,
+          "relevant_posts": 1,
+          "relevant_authors": 1
+        }
+      ]
+    },
+    {
+      "tag": "#CLI",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "CLI",
+        "command-line",
+        "non-interactive"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 3,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#CLI",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 2,
+          "relevant_posts": 2,
+          "relevant_authors": 1
+        }
+      ]
+    },
+    {
+      "tag": "#DevTools",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "CLI",
+        "developer",
+        "developers",
+        "tool",
+        "development"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 3,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#DevTools",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 6,
+          "relevant_posts": 6,
+          "relevant_authors": 4
+        }
+      ]
+    },
+    {
+      "tag": "#Automation",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "automation",
+        "automates",
+        "automatic",
+        "automated",
+        "non-interactive",
+        "unattended",
+        "automate"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 3,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#Automation",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 4,
+          "relevant_posts": 3,
+          "relevant_authors": 3
+        }
+      ]
+    },
+    {
+      "tag": "#BuildInPublic",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "development",
+        "progress",
+        "building"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 2,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#BuildInPublic",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 6,
+          "relevant_posts": 6,
+          "relevant_authors": 6
+        }
+      ]
+    },
+    {
+      "tag": "#OpenSource",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "open-source",
+        "open source"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 3,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#OpenSource",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 7,
+          "relevant_posts": 6,
+          "relevant_authors": 4
+        }
+      ]
+    },
+    {
+      "tag": "#LocalAI",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "local",
+        "Ollama"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 3,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#LocalAI",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 6,
+          "relevant_posts": 6,
+          "relevant_authors": 4
+        }
+      ]
+    },
+    {
+      "tag": "#Ollama",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "Ollama"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 3,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#Ollama",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 4,
+          "relevant_posts": 4,
+          "relevant_authors": 2
+        }
+      ]
+    },
+    {
+      "tag": "#LLM",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "model",
+        "Ollama"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 2,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#LLM",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 2,
+          "relevant_posts": 2,
+          "relevant_authors": 1
+        }
+      ]
+    },
+    {
+      "tag": "#Markdown",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "Markdown"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "excluded_keywords": [],
+      "audience_fit": 2,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:../headless/x-observations-2026-10-22.json#Markdown",
+          "observed_at": "2026-10-22T14:33:49Z",
+          "window_days": 366,
+          "sample_size": 1,
+          "relevant_posts": 1,
+          "relevant_authors": 1
+        }
+      ]
+    },
+    {
+      "tag": "#DEVCommunity",
+      "languages": [
+        "en"
+      ],
+      "keywords": [
+        "DEV",
+        "article",
+        "DEV Community"
+      ],
+      "audience_keywords": [
+        "Developers"
+      ],
+      "audience_fit": 3,
+      "evidence": [
+        {
+          "kind": "public_sample",
+          "source": "local:devcommunity-observation-2026-10-24.json",
+          "observed_at": "2026-10-24T13:23:20.577986+00:00",
+          "window_days": 366,
+          "sample_size": 1,
+          "relevant_posts": 1,
+          "relevant_authors": 1
+        }
+      ]
+    }
+  ]
+}

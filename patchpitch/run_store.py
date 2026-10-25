@@ -60,6 +60,22 @@ def write_json(path, value):
     write_text(path, json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n")
 
 
+def write_bytes(path, content):
+    """Atomic bounded callers' binary assets, using the checkpoint durability rules."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary = tempfile.mkstemp(prefix=".checkpoint-", dir=path.parent)
+    try:
+        with os.fdopen(fd, "wb") as handle:
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        if os.path.exists(temporary):
+            os.unlink(temporary)
+
+
 class FileLock(AbstractContextManager):
     """Hold a byte-range/flock lock; a killed process releases it automatically."""
     def __init__(self, path, code="RUN_BUSY"):

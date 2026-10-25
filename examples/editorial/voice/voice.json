@@ -1,0 +1,19 @@
+{
+  "schema_version": "quillgrain.voice-pack/v1",
+  "id": "patchpitch.editorial.example",
+  "version": "1.0.0",
+  "visibility": "public",
+  "status": "REVIEWED",
+  "languages": ["en", "ru"],
+  "registers": ["maker_announcement"],
+  "extends": [],
+  "examples": [],
+  "provenance": [],
+  "limitations": ["Designed demonstration preferences; not a learned or authenticated personal voice."],
+  "compatibility": {"engine": "0.1", "schema": "v1"},
+  "permissions": {"local_analysis": true, "retrieval": true, "private_git_excerpt": false, "approved_model_hosts": ["ollama"], "public_redistribution": true},
+  "rules": [
+    {"id": "editorial.concrete", "kind": "preference", "scope": {"tags": ["social.longform"]}, "instruction": "Use a personal, direct explanation of a concrete problem and observed result. Connect sentences. Prefer specific examples over a list of features. Use I/my for the author. Do not manufacture an anecdote or claims of adoption.", "priority": 90, "enforcement": "human_review", "evidence_ids": [], "origin": "designed_default", "status": "REVIEWED"},
+    {"id": "editorial.short", "kind": "preference", "scope": {"tags": ["social.x"]}, "instruction": "Lead with one concrete reason a developer would read the article. Use a short personal sentence, factual topic words and no hype. Do not invent performance numbers or popularity.", "priority": 90, "enforcement": "human_review", "evidence_ids": [], "origin": "designed_default", "status": "REVIEWED"}
+  ]
+}
